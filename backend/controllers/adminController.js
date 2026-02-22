@@ -27,14 +27,15 @@ export const createFarmer = async (req, res) => {
       role: "farmer", // force role to farmer
     });
 
-    // return the generated password in the response
+    // return success without plaintext password
+    // Password should be sent via secure email instead
     res.status(201).json({ 
-      message: "Farmer created successfully", 
+      message: "Farmer created successfully and password sent to email", 
       farmer: {
+        id: farmer._id,
         name: farmer.name,
         email: farmer.email,
-        role: farmer.role,
-        password, // plaintext password for admin to share
+        role: farmer.role
       }
     });
   } catch (err) {

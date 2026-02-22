@@ -1,3 +1,4 @@
+// backend/middleware/roleMiddleware.js
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {
     if (!allowedRoles.includes(req.user.role)) {

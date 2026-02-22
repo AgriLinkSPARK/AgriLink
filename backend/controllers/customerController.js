@@ -65,3 +65,31 @@ export const loginCustomer = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// Customer Dashboard
+export const customerDashboard = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== "customer") {
+      return res.status(403).json({ message: "Only customers can access" });
+    }
+
+    res.json({
+      message: "Welcome to Customer Dashboard",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      data: {
+        orders: [],
+        wishlist: [],
+        recommendations: "Recommended products here"
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

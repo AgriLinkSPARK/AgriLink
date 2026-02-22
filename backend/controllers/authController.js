@@ -1,3 +1,4 @@
+// backend/controllers/authController.js
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -91,6 +92,36 @@ export const registerFarmer = async (req, res) => {
     const farmer = await User.create({ name, email, password: hashed, role: "farmer" });
 
     res.status(201).json({ token: generateToken(farmer), role: "farmer" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ==========================
+// Farmer Dashboard
+// ==========================
+export const farmerDashboard = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== "farmer") {
+      return res.status(403).json({ message: "Only farmers can access" });
+    }
+
+    res.json({
+      message: "Welcome to Farmer Dashboard",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      data: {
+        crops: [],
+        orders: [],
+        stats: "Your farm stats here"
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

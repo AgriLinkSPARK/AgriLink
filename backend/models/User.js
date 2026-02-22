@@ -9,8 +9,7 @@ const userSchema = new mongoose.Schema({
     enum: ["admin", "farmer", "customer"],
     default: "customer",
   },
-  // ⭐ Fields added for Buyer CRUD
-  phone: { type: String },
+  phone: String,
   addresses: [{
     street: String,
     city: String,

@@ -1,22 +1,25 @@
-// backend/routes/authRoutes.js
 import express from "express";
 import { 
   login, 
   registerCustomer, 
-  loginCustomer,
-  registerFarmer 
+  loginCustomer, 
+  registerFarmer, 
+  getProfile 
 } from "../controllers/authController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Admin/Farmer login
-router.post("/login", login);
+// --- PUBLIC ROUTES ---
+// These are the ones you confirmed are working (or their counterparts)
+router.post("/register", registerCustomer);      // URL: /api/auth/register
+router.post("/login", login);                    // URL: /api/auth/login
 
-// Customer registration & login
-router.post("/register/customer", registerCustomer);
-router.post("/login/customer", loginCustomer);
+// --- ADD THESE TO FIX THE OTHERS ---
+router.post("/register-farmer", registerFarmer); // URL: /api/auth/register-farmer
+router.post("/customer-login", loginCustomer);   // URL: /api/auth/customer-login
 
-// Farmer self-registration
-router.post("/register/farmer", registerFarmer);
+// --- PROTECTED ROUTES ---
+router.get("/profile", protect, getProfile);     // URL: /api/auth/profile
 
 export default router;

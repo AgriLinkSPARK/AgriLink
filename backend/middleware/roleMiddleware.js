@@ -1,3 +1,4 @@
+// backend/middleware/roleMiddleware.js
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {
     // Check if user exists on req and if their role is in the allowed list

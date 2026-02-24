@@ -1,5 +1,6 @@
 // backend/controllers/authController.js
 import User from "../models/User.js";
+import Store from "../models/Store.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -25,7 +26,20 @@ export const login = async (req, res) => {
       return res.status(403).json({ message: "Use customer login endpoint" });
     }
 
-    res.json({ token: generateToken(user), role: user.role });
+    let hasStore = null;
+
+    // 🔥 Only check for farmers
+    if (user.role === "farmer") {
+      const store = await Store.findOne({ farmer: user._id });
+      hasStore = !!store; // true or false
+    }
+
+    res.json({
+      token: generateToken(user),
+      role: user.role,
+      hasStore, // will be true/false for farmer, null for admin
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

@@ -93,3 +93,68 @@ export const customerDashboard = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ==========
+// Customer Profile CRUD
+// ==========
+
+export const getCustomerProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user || user.role !== "customer") {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateCustomerProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== "customer") {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    const { name, email, password } = req.body;
+
+    if (email && email !== user.email) {
+      const exists = await User.findOne({ email });
+      if (exists) return res.status(400).json({ message: "Email already in use" });
+      user.email = email;
+    }
+
+    if (name) user.name = name;
+
+    if (password) {
+      const hashed = await bcrypt.hash(password, 10);
+      user.password = hashed;
+    }
+
+    await user.save();
+
+    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const deleteCustomerProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== "customer") {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    await User.findByIdAndDelete(req.user.id);
+
+    res.json({ message: "Customer account deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

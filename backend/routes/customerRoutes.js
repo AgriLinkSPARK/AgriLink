@@ -1,14 +1,14 @@
-// import express from "express";
-// import { registerCustomer, loginCustomer, customerDashboard } from "../controllers/customerController.js";
-// import { protect, authorize } from "../middleware/authMiddleware.js";
+import express from "express";
+import { registerCustomer, loginCustomer, customerDashboard } from "../controllers/customerController.js";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 
-// const router = express.Router(); // create router instance
+const router = express.Router(); // create router instance
 
-// // Customer registration & login
-// router.post("/register", registerCustomer);
-// router.post("/login", loginCustomer);
+// Customer registration & login
+router.post("/register", registerCustomer);
+router.post("/login", loginCustomer);
 
-// // Customer Dashboard (protected)
-// router.get("/dashboard", protect, customerDashboard);
+// Customer Dashboard (protected)
+router.get("/dashboard", protect, customerDashboard);
 
-// export default router; // default export
+export default router; // default export

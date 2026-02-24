@@ -1,6 +1,10 @@
 import express from "express";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import protect from "../middleware/authMiddleware.js";
+=======
+import { protect } from "../middleware/authMiddleware.js";
+>>>>>>> Stashed changes
 =======
 import { protect } from "../middleware/authMiddleware.js";
 >>>>>>> Stashed changes

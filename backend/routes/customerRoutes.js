@@ -1,5 +1,6 @@
 import express from "express";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import {
 	registerCustomer,
 	loginCustomer,
@@ -35,5 +36,20 @@ router.delete("/profile", protect, authorize("customer"), deleteCustomerProfile)
 
 export default router;
 =======
+export default router; // default export
+>>>>>>> Stashed changes
+=======
+import { registerCustomer, loginCustomer, customerDashboard } from "../controllers/customerController.js";
+import { protect, authorize } from "../middleware/authMiddleware.js";
+
+const router = express.Router(); // create router instance
+
+// Customer registration & login
+router.post("/register", registerCustomer);
+router.post("/login", loginCustomer);
+
+// Customer Dashboard (protected)
+router.get("/dashboard", protect, customerDashboard);
+
 export default router; // default export
 >>>>>>> Stashed changes

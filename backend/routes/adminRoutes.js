@@ -1,33 +1,5 @@
 import express from "express";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-import protect from "../middleware/authMiddleware.js";
-=======
 import { protect } from "../middleware/authMiddleware.js";
->>>>>>> Stashed changes
-=======
-import { protect } from "../middleware/authMiddleware.js";
->>>>>>> Stashed changes
-=======
-import { protect } from "../middleware/authMiddleware.js";
->>>>>>> Stashed changes
-=======
-import { protect } from "../middleware/authMiddleware.js";
->>>>>>> Stashed changes
-=======
-import { protect } from "../middleware/authMiddleware.js";
->>>>>>> Stashed changes
-=======
-import { protect } from "../middleware/authMiddleware.js";
->>>>>>> Stashed changes
-=======
-import { protect } from "../middleware/authMiddleware.js";
->>>>>>> Stashed changes
 import authorize from "../middleware/roleMiddleware.js";
 import { createFarmer } from "../controllers/adminController.js";
 

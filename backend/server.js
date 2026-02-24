@@ -4,10 +4,8 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
-// import customerRoutes from "./routes/customerRoutes.js";
-import farmerRoutes from "./routes/farmerRoutes.js";
-import productRoutes from "./routes/productRoutes.js";
-// import adminRoutes from "./routes/adminRoutes.js";
+import customerRoutes from "./routes/customerRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -28,10 +26,8 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Routes
 app.use("/api/auth", authRoutes);
-// app.use("/api/customer", customerRoutes);
-// app.use("/api/admin", adminRoutes);
-app.use("/api/farmers", farmerRoutes);
-app.use("/api/products", productRoutes);
+app.use("/api/customer", customerRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Server
 const PORT = process.env.PORT || 8080;

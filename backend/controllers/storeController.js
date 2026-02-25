@@ -23,6 +23,7 @@ export const createStore = async (req, res) => {
 
     res.status(201).json(store);
   } catch (err) {
+    res.status(500).json({ message: "Server error" });
     console.error("Create store error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }

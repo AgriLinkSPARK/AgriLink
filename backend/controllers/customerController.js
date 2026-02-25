@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { sendWelcomeEmail, sendPasswordChangedEmail } from "../utils/mailer.js";
 
 // Generate JWT token
 const generateToken = (user) => {
@@ -36,6 +37,13 @@ export const registerCustomer = async (req, res) => {
       password: hashed,
       role: "customer", // force role
     });
+
+    // Send welcome email (best-effort, do not block response)
+    try {
+      await sendWelcomeEmail(customer.email, customer.name);
+    } catch (err) {
+      console.error("Failed to send welcome email:", err);
+    }
 
     res.status(201).json({ token: generateToken(customer), role: "customer" });
   } catch (error) {
@@ -135,6 +143,15 @@ export const updateCustomerProfile = async (req, res) => {
     }
 
     await user.save();
+
+    // If password changed, send confirmation email
+    if (password) {
+      try {
+        await sendPasswordChangedEmail(user.email, user.name);
+      } catch (err) {
+        console.error("Failed to send password changed email:", err);
+      }
+    }
 
     res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (error) {

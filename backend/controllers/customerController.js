@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { sendWelcomeEmail, sendPasswordChangedEmail } from "../utils/mailer.js";
 
 // Generate JWT token
 const generateToken = (user) => {
@@ -36,6 +37,13 @@ export const registerCustomer = async (req, res) => {
       password: hashed,
       role: "customer", // force role
     });
+
+    // Send welcome email (best-effort, do not block response)
+    try {
+      await sendWelcomeEmail(customer.email, customer.name);
+    } catch (err) {
+      console.error("Failed to send welcome email:", err);
+    }
 
     res.status(201).json({ token: generateToken(customer), role: "customer" });
   } catch (error) {
@@ -88,6 +96,91 @@ export const customerDashboard = async (req, res) => {
         recommendations: "Recommended products here"
       }
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ==========
+// Customer Profile CRUD
+// ==========
+
+export const getCustomerProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user || user.role !== "customer") {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateCustomerProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== "customer") {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    const { name, email, password } = req.body;
+    let emailChanged = false;
+    let passwordChanged = false;
+
+    if (email && email !== user.email) {
+      const exists = await User.findOne({ email });
+      if (exists) return res.status(400).json({ message: "Email already in use" });
+      user.email = email;
+      emailChanged = true;
+    }
+
+    if (name) user.name = name;
+
+    if (password) {
+      const hashed = await bcrypt.hash(password, 10);
+      user.password = hashed;
+      passwordChanged = true;
+    }
+
+    await user.save();
+
+    // Send email notifications for changes
+    if (passwordChanged) {
+      try {
+        console.log(`📧 Preparing to send password change email to: ${user.email}`);
+        const emailResult = await sendPasswordChangedEmail(user.email, user.name);
+        console.log(`✅ Password change email sent successfully to: ${user.email}`);
+        console.log(`📨 Email result:`, emailResult);
+      } catch (err) {
+        console.error(`❌ Failed to send password changed email to ${user.email}`);
+        console.error(`❌ Error details:`, err);
+      }
+    }
+
+    res.json({ 
+      message: passwordChanged ? "Profile updated and confirmation email sent" : "Profile updated successfully",
+      user: { id: user._id, name: user.name, email: user.email, role: user.role } 
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const deleteCustomerProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || user.role !== "customer") {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    await User.findByIdAndDelete(req.user.id);
+
+    res.json({ message: "Customer account deleted" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

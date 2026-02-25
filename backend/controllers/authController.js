@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Store from "../models/Store.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { sendWelcomeEmail } from "../utils/mailer.js";
 
 // Generate JWT
 const generateToken = (user) =>
@@ -60,6 +61,12 @@ export const registerCustomer = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const customer = await User.create({ name, email, password: hashed, role: "customer" });
+    // Send welcome email (best-effort)
+    try {
+      await sendWelcomeEmail(customer.email, customer.name);
+    } catch (err) {
+      console.error("Failed to send welcome email:", err);
+    }
 
     res.status(201).json({ token: generateToken(customer), role: "customer" });
   } catch (err) {

@@ -1,7 +1,9 @@
 // backend/controllers/authController.js
 import User from "../models/User.js";
+import Store from "../models/Store.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { sendWelcomeEmail } from "../utils/mailer.js";
 
 // Generate JWT
 const generateToken = (user) =>
@@ -25,7 +27,20 @@ export const login = async (req, res) => {
       return res.status(403).json({ message: "Use customer login endpoint" });
     }
 
-    res.json({ token: generateToken(user), role: user.role });
+    let hasStore = null;
+
+    // 🔥 Only check for farmers
+    if (user.role === "farmer") {
+      const store = await Store.findOne({ farmer: user._id });
+      hasStore = !!store; // true or false
+    }
+
+    res.json({
+      token: generateToken(user),
+      role: user.role,
+      hasStore, // will be true/false for farmer, null for admin
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -46,6 +61,12 @@ export const registerCustomer = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const customer = await User.create({ name, email, password: hashed, role: "customer" });
+    // Send welcome email (best-effort)
+    try {
+      await sendWelcomeEmail(customer.email, customer.name);
+    } catch (err) {
+      console.error("Failed to send welcome email:", err);
+    }
 
     res.status(201).json({ token: generateToken(customer), role: "customer" });
   } catch (err) {

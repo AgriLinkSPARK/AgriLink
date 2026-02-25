@@ -128,11 +128,14 @@ export const updateCustomerProfile = async (req, res) => {
     }
 
     const { name, email, password } = req.body;
+    let emailChanged = false;
+    let passwordChanged = false;
 
     if (email && email !== user.email) {
       const exists = await User.findOne({ email });
       if (exists) return res.status(400).json({ message: "Email already in use" });
       user.email = email;
+      emailChanged = true;
     }
 
     if (name) user.name = name;
@@ -140,20 +143,28 @@ export const updateCustomerProfile = async (req, res) => {
     if (password) {
       const hashed = await bcrypt.hash(password, 10);
       user.password = hashed;
+      passwordChanged = true;
     }
 
     await user.save();
 
-    // If password changed, send confirmation email
-    if (password) {
+    // Send email notifications for changes
+    if (passwordChanged) {
       try {
-        await sendPasswordChangedEmail(user.email, user.name);
+        console.log(`📧 Preparing to send password change email to: ${user.email}`);
+        const emailResult = await sendPasswordChangedEmail(user.email, user.name);
+        console.log(`✅ Password change email sent successfully to: ${user.email}`);
+        console.log(`📨 Email result:`, emailResult);
       } catch (err) {
-        console.error("Failed to send password changed email:", err);
+        console.error(`❌ Failed to send password changed email to ${user.email}`);
+        console.error(`❌ Error details:`, err);
       }
     }
 
-    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.json({ 
+      message: passwordChanged ? "Profile updated and confirmation email sent" : "Profile updated successfully",
+      user: { id: user._id, name: user.name, email: user.email, role: user.role } 
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

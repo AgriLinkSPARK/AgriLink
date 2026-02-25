@@ -7,6 +7,8 @@ import authRoutes from "./routes/authRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 // import adminRoutes from "./routes/adminRoutes.js";
 import logisticsRoutes from "./routes/logisticsRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 dotenv.config();
 
@@ -29,6 +31,8 @@ mongoose.connect(process.env.MONGO_URI)
 app.use("/api/auth", authRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/logistics", logisticsRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/messages", messageRoutes);
 // app.use("/api/admin", adminRoutes);
 
 // Server

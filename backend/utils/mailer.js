@@ -24,11 +24,16 @@ function getFromAddress() {
 async function sendMail({ to, subject, text, html }) {
   try {
     const mailer = getTransporter();
+    console.log(`📧 Attempting to send email to: ${to}`);
     const info = await mailer.sendMail({ from: getFromAddress(), to, subject, text, html });
-    console.log("✅ Email sent:", info.messageId);
+    console.log("✅ Email sent successfully:", info.messageId);
+    console.log("📨 Response:", info);
     return info;
   } catch (err) {
-    console.error("❌ Error sending email:", err.message);
+    console.error("❌ Error sending email to:", to);
+    console.error("❌ Error code:", err.code);
+    console.error("❌ Error message:", err.message);
+    console.error("❌ Full error:", err);
     throw err;
   }
 }

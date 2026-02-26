@@ -91,4 +91,66 @@ export async function sendPasswordChangedEmail(to, name) {
   return sendMail({ to, subject, text, html });
 }
 
-export default { sendWelcomeEmail, sendPasswordChangedEmail };
+export async function sendFarmerWelcomeEmail(to, name, tempPassword = null) {
+  const subject = "Welcome to AgriLink - Farmer Account";
+  const passwordSection = tempPassword ? `<p>Your temporary password is: <strong>${tempPassword}</strong></p><p>Please change this password after your first login.</p>` : "";
+  const html = `
+    <p>Hi ${name || "there"},</p>
+    <p>Welcome to AgriLink! We're excited to have you as a farmer partner. You can now manage your products, track orders, and connect with buyers.</p>
+    ${passwordSection}
+    <p>If you have any questions, feel free to reach out to our support team.</p>
+    <p>— The AgriLink Team</p>
+  `;
+  const text = `Hi ${name || "there"},\n\nWelcome to AgriLink! We're excited to have you as a farmer partner.\n\n${tempPassword ? `Your temporary password is: ${tempPassword}\nPlease change this password after your first login.\n\n` : ""}If you have any questions, feel free to reach out to our support team.\n\n— The AgriLink Team`;
+  return sendMail({ to, subject, text, html });
+}
+
+export async function sendOrderConfirmationEmail(to, name, orderId, totalPrice) {
+  const subject = `Order Confirmation - AgriLink Order #${orderId}`;
+  const html = `
+    <p>Hi ${name || "there"},</p>
+    <p>Thank you for your order! We've received your order and are processing it.</p>
+    <p><strong>Order ID:</strong> ${orderId}</p>
+    <p><strong>Total Amount:</strong> ₹${totalPrice}</p>
+    <p>You will receive a shipping notification once your order is dispatched.</p>
+    <p>— The AgriLink Team</p>
+  `;
+  const text = `Hi ${name || "there"},\n\nThank you for your order!\n\nOrder ID: ${orderId}\nTotal Amount: ₹${totalPrice}\n\nYou will receive a shipping notification once your order is dispatched.\n\n— The AgriLink Team`;
+  return sendMail({ to, subject, text, html });
+}
+
+export async function sendOrderCancellationEmail(to, name, orderId) {
+  const subject = `Order Cancelled - AgriLink Order #${orderId}`;
+  const html = `
+    <p>Hi ${name || "there"},</p>
+    <p>Your order has been cancelled successfully.</p>
+    <p><strong>Order ID:</strong> ${orderId}</p>
+    <p>If you have any questions about this cancellation, please contact our support team.</p>
+    <p>— The AgriLink Team</p>
+  `;
+  const text = `Hi ${name || "there"},\n\nYour order has been cancelled successfully.\n\nOrder ID: ${orderId}\n\nIf you have any questions about this cancellation, please contact our support team.\n\n— The AgriLink Team`;
+  return sendMail({ to, subject, text, html });
+}
+
+export async function sendPaymentConfirmationEmail(to, name, orderId, totalPrice) {
+  const subject = `Payment Confirmed - AgriLink Order #${orderId}`;
+  const html = `
+    <p>Hi ${name || "there"},</p>
+    <p>We've received your payment successfully!</p>
+    <p><strong>Order ID:</strong> ${orderId}</p>
+    <p><strong>Amount Paid:</strong> ₹${totalPrice}</p>
+    <p>Your order is now confirmed and will be prepared for shipment.</p>
+    <p>— The AgriLink Team</p>
+  `;
+  const text = `Hi ${name || "there"},\n\nWe've received your payment successfully!\n\nOrder ID: ${orderId}\nAmount Paid: ₹${totalPrice}\n\nYour order is now confirmed and will be prepared for shipment.\n\n— The AgriLink Team`;
+  return sendMail({ to, subject, text, html });
+}
+
+export default { 
+  sendWelcomeEmail, 
+  sendPasswordChangedEmail, 
+  sendFarmerWelcomeEmail,
+  sendOrderConfirmationEmail,
+  sendOrderCancellationEmail,
+  sendPaymentConfirmationEmail
+};

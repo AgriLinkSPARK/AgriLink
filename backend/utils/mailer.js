@@ -1,51 +1,69 @@
-import Mailgun from "mailgun.js";
-import formData from "form-data";
+import fetch from "node-fetch";
+import { BrevoClient } from "@getbrevo/brevo";
 
-let mailgunClient = null;
+// Polyfill fetch for Node.js v16
+if (!globalThis.fetch) {
+  globalThis.fetch = fetch;
+}
 
-function getMailgunClient() {
-  if (!mailgunClient) {
-    const mailgun = new Mailgun(formData);
-    mailgunClient = mailgun.client({
-      username: "api",
-      key: process.env.MAILGUN_API_KEY,
-      url: process.env.MAILGUN_HOST,
+let brevoClient = null;
+
+function getBrevoClient() {
+  if (!brevoClient) {
+    brevoClient = new BrevoClient({
+      apiKey: process.env.BREVO_API_KEY,
     });
   }
-  return mailgunClient;
+  return brevoClient;
 }
 
 function getFromAddress() {
-  return process.env.EMAIL_FROM || "no-reply@example.com";
+  return {
+    email: process.env.EMAIL_FROM || "no-reply@example.com",
+    name: process.env.EMAIL_FROM_NAME || "AgriLink"
+  };
 }
 
-function getMailgunDomain() {
-  return process.env.MAILGUN_DOMAIN || "";
+// Basic email validation
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 }
 
 async function sendMail({ to, subject, text, html }) {
   try {
-    const domain = getMailgunDomain();
-    if (!domain) {
-      throw new Error("MAILGUN_DOMAIN is not configured");
+    if (!process.env.BREVO_API_KEY) {
+      throw new Error("BREVO_API_KEY is not configured");
     }
 
-    const client = getMailgunClient();
+    // Validate email format
+    if (!to || !isValidEmail(to)) {
+      throw new Error(`Invalid email address: ${to}`);
+    }
+
+    const client = getBrevoClient();
+    const fromAddress = getFromAddress();
+    
     console.log(`📧 Attempting to send email to: ${to}`);
-    const info = await client.messages.create(domain, {
-      from: getFromAddress(),
-      to: [to],
-      subject,
-      text,
-      html,
-    });
-    console.log("✅ Email sent successfully:", info.id);
+    
+    const emailData = {
+      sender: fromAddress,
+      to: [{ email: to }],
+      subject: subject,
+      textContent: text,
+      htmlContent: html,
+    };
+
+    const info = await client.transactionalEmails.sendTransacEmail(emailData);
+    console.log("✅ Email sent successfully:", info.messageId);
     console.log("📨 Response:", info);
     return info;
   } catch (err) {
     console.error("❌ Error sending email to:", to);
     console.error("❌ Error message:", err.message);
-    console.error("❌ Full error:", err);
+    if (err.body) {
+      console.error("❌ Brevo error details:", err.body);
+    }
     throw err;
   }
 }

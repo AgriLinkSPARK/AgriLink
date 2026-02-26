@@ -9,19 +9,15 @@ async function testEmailSending() {
   console.log("🧪 Email Sending Test");
   console.log("==========================================\n");
 
-  // Check if Mailgun is configured
-  if (!process.env.MAILGUN_API_KEY) {
-    console.error("❌ MAILGUN_API_KEY not found in .env file");
-    process.exit(1);
-  }
-  if (!process.env.MAILGUN_DOMAIN) {
-    console.error("❌ MAILGUN_DOMAIN not found in .env file");
+  // Check if Brevo is configured
+  if (!process.env.BREVO_API_KEY) {
+    console.error("❌ BREVO_API_KEY not found in .env file");
     process.exit(1);
   }
 
-  console.log("✅ Mailgun API Key found");
-  console.log(`🌐 Mailgun domain: ${process.env.MAILGUN_DOMAIN}`);
-  console.log(`📧 From address: ${process.env.EMAIL_FROM}\n`);
+  console.log("✅ Brevo API Key found");
+  console.log(`📧 From address: ${process.env.EMAIL_FROM}`);
+  console.log(`👤 From name: ${process.env.EMAIL_FROM_NAME || 'AgriLink'}\n`);
 
   // Get test email from command line argument or use default
   const testEmail = process.argv[2] || "aenuine@gmail.com";
@@ -57,8 +53,8 @@ async function testEmailSending() {
     console.error("❌ Email test failed!");
     console.error("==========================================");
     console.error("Error details:", error.message);
-    if (error.details) {
-      console.error("Mailgun response:", JSON.stringify(error.details, null, 2));
+    if (error.details || error.body) {
+      console.error("Brevo response:", JSON.stringify(error.details || error.body, null, 2));
     }
     process.exit(1);
   }

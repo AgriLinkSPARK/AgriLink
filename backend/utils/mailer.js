@@ -1,37 +1,49 @@
-import nodemailer from "nodemailer";
+import Mailgun from "mailgun.js";
+import formData from "form-data";
 
-let transporter = null;
+let mailgunClient = null;
 
-function getTransporter() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+function getMailgunClient() {
+  if (!mailgunClient) {
+    const mailgun = new Mailgun(formData);
+    mailgunClient = mailgun.client({
+      username: "api",
+      key: process.env.MAILGUN_API_KEY,
+      url: process.env.MAILGUN_HOST,
     });
   }
-  return transporter;
+  return mailgunClient;
 }
 
 function getFromAddress() {
-  return process.env.EMAIL_FROM || `no-reply@${process.env.SMTP_HOST}`;
+  return process.env.EMAIL_FROM || "no-reply@example.com";
+}
+
+function getMailgunDomain() {
+  return process.env.MAILGUN_DOMAIN || "";
 }
 
 async function sendMail({ to, subject, text, html }) {
   try {
-    const mailer = getTransporter();
+    const domain = getMailgunDomain();
+    if (!domain) {
+      throw new Error("MAILGUN_DOMAIN is not configured");
+    }
+
+    const client = getMailgunClient();
     console.log(`📧 Attempting to send email to: ${to}`);
-    const info = await mailer.sendMail({ from: getFromAddress(), to, subject, text, html });
-    console.log("✅ Email sent successfully:", info.messageId);
+    const info = await client.messages.create(domain, {
+      from: getFromAddress(),
+      to: [to],
+      subject,
+      text,
+      html,
+    });
+    console.log("✅ Email sent successfully:", info.id);
     console.log("📨 Response:", info);
     return info;
   } catch (err) {
     console.error("❌ Error sending email to:", to);
-    console.error("❌ Error code:", err.code);
     console.error("❌ Error message:", err.message);
     console.error("❌ Full error:", err);
     throw err;

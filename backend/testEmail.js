@@ -9,13 +9,18 @@ async function testEmailSending() {
   console.log("🧪 Email Sending Test");
   console.log("==========================================\n");
 
-  // Check if SendGrid API key is configured
-  if (!process.env.SENDGRID_API_KEY) {
-    console.error("❌ SENDGRID_API_KEY not found in .env file");
+  // Check if Mailgun is configured
+  if (!process.env.MAILGUN_API_KEY) {
+    console.error("❌ MAILGUN_API_KEY not found in .env file");
+    process.exit(1);
+  }
+  if (!process.env.MAILGUN_DOMAIN) {
+    console.error("❌ MAILGUN_DOMAIN not found in .env file");
     process.exit(1);
   }
 
-  console.log("✅ SendGrid API Key found");
+  console.log("✅ Mailgun API Key found");
+  console.log(`🌐 Mailgun domain: ${process.env.MAILGUN_DOMAIN}`);
   console.log(`📧 From address: ${process.env.EMAIL_FROM}\n`);
 
   // Get test email from command line argument or use default
@@ -52,8 +57,8 @@ async function testEmailSending() {
     console.error("❌ Email test failed!");
     console.error("==========================================");
     console.error("Error details:", error.message);
-    if (error.response?.body) {
-      console.error("SendGrid response:", JSON.stringify(error.response.body, null, 2));
+    if (error.details) {
+      console.error("Mailgun response:", JSON.stringify(error.details, null, 2));
     }
     process.exit(1);
   }

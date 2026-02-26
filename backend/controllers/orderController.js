@@ -1,5 +1,11 @@
 import Order from "../models/order.js";
 import Cart from "../models/Cart.js";
+import User from "../models/User.js";
+import { 
+  sendOrderConfirmationEmail, 
+  sendOrderCancellationEmail, 
+  sendPaymentConfirmationEmail 
+} from "../utils/mailer.js";
 
 // Checkout → create order from cart
 export const checkout = async (req, res) => {
@@ -15,6 +21,16 @@ export const checkout = async (req, res) => {
     // Clear cart
     cart.items = [];
     await cart.save();
+
+    // Send order confirmation email (best-effort)
+    try {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        await sendOrderConfirmationEmail(user.email, user.name, order._id, totalPrice);
+      }
+    } catch (err) {
+      console.error("Failed to send order confirmation email:", err);
+    }
 
     res.status(201).json({ message: "Order created. Proceed to payment.", order });
   } catch (err) {
@@ -44,6 +60,16 @@ export const markAsPaid = async (req, res) => {
     order.status = "Confirmed";
     await order.save();
 
+    // Send payment confirmation email (best-effort)
+    try {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        await sendPaymentConfirmationEmail(user.email, user.name, order._id, order.totalPrice);
+      }
+    } catch (err) {
+      console.error("Failed to send payment confirmation email:", err);
+    }
+
     res.json({ message: "Payment successful (simulated)", order });
   } catch (err) {
     console.error(err);
@@ -61,6 +87,16 @@ export const cancelOrder = async (req, res) => {
 
     order.status = "Cancelled";
     await order.save();
+
+    // Send order cancellation email (best-effort)
+    try {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        await sendOrderCancellationEmail(user.email, user.name, order._id);
+      }
+    } catch (err) {
+      console.error("Failed to send order cancellation email:", err);
+    }
 
     res.json({ message: "Order cancelled successfully", order });
   } catch (err) {

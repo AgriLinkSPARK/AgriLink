@@ -3,7 +3,7 @@ import User from "../models/User.js";
 import Store from "../models/Store.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { sendWelcomeEmail } from "../utils/mailer.js";
+import { sendWelcomeEmail, sendFarmerWelcomeEmail } from "../utils/mailer.js";
 
 // Generate JWT
 const generateToken = (user) =>
@@ -111,6 +111,13 @@ export const registerFarmer = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const farmer = await User.create({ name, email, password: hashed, role: "farmer" });
+
+    // Send farmer welcome email (best-effort)
+    try {
+      await sendFarmerWelcomeEmail(farmer.email, farmer.name);
+    } catch (err) {
+      console.error("Failed to send farmer welcome email:", err);
+    }
 
     res.status(201).json({ token: generateToken(farmer), role: "farmer" });
   } catch (err) {

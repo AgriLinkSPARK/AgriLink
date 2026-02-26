@@ -1,3 +1,4 @@
+// models/Store.js
 import mongoose from "mongoose";
 
 const storeSchema = new mongoose.Schema(
@@ -24,3 +25,25 @@ storeSchema.virtual("products", {
 });
 
 export default mongoose.model("Store", storeSchema);
+
+
+
+// import mongoose from "mongoose";
+
+// const storeSchema = new mongoose.Schema(
+//   {
+//     name: { type: String, required: true },
+//     description: String,
+//     location: String,
+//     phone: String,
+//     farmer: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "User",
+//       required: true,
+//       unique: true, // one store per farmer
+//     },
+//   },
+//   { timestamps: true }
+// );
+
+// export default mongoose.model("Store", storeSchema);

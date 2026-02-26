@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto"; // for generating random passwords
+import { sendFarmerWelcomeEmail } from "../utils/mailer.js";
 
 export const createFarmer = async (req, res) => {
   try {
@@ -27,9 +28,16 @@ export const createFarmer = async (req, res) => {
       role: "farmer", // force role to farmer
     });
 
+    // Send farmer welcome email with temporary password (best-effort)
+    try {
+      await sendFarmerWelcomeEmail(farmer.email, farmer.name, password);
+    } catch (err) {
+      console.error("Failed to send farmer welcome email:", err);
+    }
+
     // return the generated password in the response
     res.status(201).json({ 
-      message: "Farmer created successfully", 
+      message: "Farmer created successfully and welcome email sent", 
       farmer: {
         name: farmer.name,
         email: farmer.email,

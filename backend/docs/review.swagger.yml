@@ -7,6 +7,8 @@ paths:
     post:
       summary: Create Review
       tags: [Reviews]
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -39,12 +41,18 @@ paths:
             application/json:
               schema:
                 type: object
+        401:
+          description: Unauthorized - Token required
+        403:
+          description: Forbidden - Only customers can create reviews
         500:
           description: Server error
 
     get:
       summary: Get All Reviews
       tags: [Reviews]
+      security:
+        - bearerAuth: []
       responses:
         200:
           description: List of all reviews
@@ -65,6 +73,10 @@ paths:
                       type: integer
                     comment:
                       type: string
+        401:
+          description: Unauthorized - Token required
+        403:
+          description: Forbidden - Only customers can view reviews
         500:
           description: Server error
 
@@ -72,6 +84,8 @@ paths:
     get:
       summary: Get Review by ID
       tags: [Reviews]
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: id
@@ -86,6 +100,10 @@ paths:
             application/json:
               schema:
                 type: object
+        401:
+          description: Unauthorized - Token required
+        403:
+          description: Forbidden - Only customers can view reviews
         404:
           description: Review not found
         500:
@@ -94,6 +112,8 @@ paths:
     put:
       summary: Update Review
       tags: [Reviews]
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: id
@@ -123,6 +143,10 @@ paths:
             application/json:
               schema:
                 type: object
+        401:
+          description: Unauthorized - Token required
+        403:
+          description: Forbidden - Only customers can update reviews
         404:
           description: Review not found
         500:
@@ -131,6 +155,8 @@ paths:
     delete:
       summary: Delete Review
       tags: [Reviews]
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: id
@@ -148,6 +174,10 @@ paths:
                 properties:
                   message:
                     type: string
+        401:
+          description: Unauthorized - Token required
+        403:
+          description: Forbidden - Only customers can delete reviews
         404:
           description: Review not found
         500:

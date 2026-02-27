@@ -1,0 +1,306 @@
+{
+  "info": {
+    "name": "AgriLink Logistics WhatsApp",
+    "description": "Logistics API with WhatsApp notifications - CREATE, UPDATE STATUS, DELETE",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Create Logistics (with auto-phone fetch)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  const response = pm.response.json();",
+              "  pm.environment.set('logisticsId', response.data._id);",
+              "  pm.test('Logistics created successfully', function () {",
+              "    pm.expect(response.success).to.be.true;",
+              "  });",
+              "  pm.test('WhatsApp notification result', function () {",
+              "    pm.expect(response.whatsappNotification).to.exist;",
+              "    console.log('WhatsApp Status:', response.whatsappNotification);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"_id\": \"69a19f1a971ed8d5fbe05551\",\n  \"orderId\": \"699e9efcfb4e31486e221b07\",\n  \"deliveryPartner\": \"FastExpress Delivery\",\n  \"pickupLocation\": \"Colombo Main Store\",\n  \"deliveryLocation\": \"Customer Residence, Nawala\",\n  \"status\": \"Scheduled\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/logistics",
+          "host": ["{{base_url}}"],
+          "path": ["api", "logistics"]
+        },
+        "description": "Creates a new logistics record and auto-fetches customerPhone from Order buyer. Sends WhatsApp to buyer."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\":\"...\",\"deliveryPartner\":\"...\",\"pickupLocation\":\"...\",\"deliveryLocation\":\"...\",\"status\":\"Scheduled\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/logistics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "logistics"]
+            }
+          },
+          "status": "Created",
+          "code": 201,
+          "body": "{\n  \"success\": true,\n  \"message\": \"Logistics record created successfully\",\n  \"data\": {\n    \"_id\": \"699e9efcfb4e31486e221b07\",\n    \"orderId\": \"...\",\n    \"deliveryPartner\": \"FastExpress Delivery\",\n    \"pickupLocation\": \"Colombo Main Store\",\n    \"deliveryLocation\": \"Customer Residence, Nawala\",\n    \"customerPhone\": \"+9477xxxxxxx\",\n    \"status\": \"Scheduled\",\n    \"createdAt\": \"2026-02-27T...\"\n  },\n  \"whatsappNotification\": {\n    \"sent\": true,\n    \"sid\": \"SMxxxxxxxxxxxxxxxx\",\n    \"to\": \"whatsapp:+9477xxxxxxx\",\n    \"from\": \"whatsapp:+14155238886\",\n    \"status\": \"queued\",\n    \"mode\": \"text\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. Update Logistics Status (Scheduled → Picked Up)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const response = pm.response.json();",
+              "  pm.test('Logistics status updated', function () {",
+              "    pm.expect(response.success).to.be.true;",
+              "  });",
+              "  pm.test('WhatsApp notification sent', function () {",
+              "    pm.expect(response.whatsappNotification.sent).to.be.true;",
+              "    console.log('WhatsApp SID:', response.whatsappNotification.sid);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"Picked Up\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/logistics/{{logisticsId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "logistics", "{{logisticsId}}"]
+        },
+        "description": "Updates logistics status and sends WhatsApp to customerPhone with status change message."
+      }
+    },
+    {
+      "name": "3. Update Logistics Status (Picked Up → In Transit)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"In Transit\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/logistics/{{logisticsId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "logistics", "{{logisticsId}}"]
+        },
+        "description": "Updates status to In Transit and notifies customer via WhatsApp."
+      }
+    },
+    {
+      "name": "4. Update Logistics Status (In Transit → Out for Delivery)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"Out for Delivery\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/logistics/{{logisticsId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "logistics", "{{logisticsId}}"]
+        },
+        "description": "Updates status to Out for Delivery and notifies customer via WhatsApp."
+      }
+    },
+    {
+      "name": "5. Update Logistics Status (Out for Delivery → Delivered)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const response = pm.response.json();",
+              "  pm.test('Delivery completed', function () {",
+              "    pm.expect(response.data.status).to.equal('Delivered');",
+              "    pm.expect(response.data.actualDeliveryDate).to.exist;",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"Delivered\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/logistics/{{logisticsId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "logistics", "{{logisticsId}}"]
+        },
+        "description": "Marks order as Delivered, sets actualDeliveryDate, and sends final notification to customer."
+      }
+    },
+    {
+      "name": "6. Delete Logistics (Cancellation with notification)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const response = pm.response.json();",
+              "  pm.test('Logistics deleted successfully', function () {",
+              "    pm.expect(response.success).to.be.true;",
+              "  });",
+              "  pm.test('Cancellation WhatsApp sent', function () {",
+              "    pm.expect(response.whatsappNotification.sent).to.be.true;",
+              "    console.log('Cancellation WhatsApp SID:', response.whatsappNotification.sid);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/logistics/{{logisticsId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "logistics", "{{logisticsId}}"]
+        },
+        "description": "Cancels logistics record and sends WhatsApp notification to customer about cancellation."
+      }
+    },
+    {
+      "name": "7. Get All Logistics (with pagination)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/logistics?status=Scheduled&page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "logistics"],
+          "query": [
+            {
+              "key": "status",
+              "value": "Scheduled",
+              "disabled": false
+            },
+            {
+              "key": "page",
+              "value": "1",
+              "disabled": false
+            },
+            {
+              "key": "limit",
+              "value": "10",
+              "disabled": false
+            }
+          ]
+        },
+        "description": "Fetches logistics records with optional status filter and pagination."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "token",
+      "value": "your_jwt_token_here"
+    },
+    {
+      "key": "logisticsId",
+      "value": ""
+    }
+  ]
+}

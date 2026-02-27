@@ -1,10 +1,102 @@
 import Logistics from "../models/logistics.js";
 import asyncHandler from "../middleware/asyncHandler.js";
+import whatsappService from "../services/whatsappService.js";
+
+const getLogisticsNotificationPhone = (logistics) => logistics?.customerPhone || logistics?.recipientPhone;
+
+const sendLogisticsCreateNotification = async (logistics) => {
+  const phone = getLogisticsNotificationPhone(logistics);
+  if (!phone) {
+    return { attempted: false, sent: false, reason: "No customerPhone/recipientPhone on logistics record" };
+  }
+
+  const message = `AgriLink logistics created for order ${logistics.orderId}. Status: ${logistics.status}. Delivery location: ${logistics.deliveryLocation}.`;
+  const result = await whatsappService.sendMessage(phone, message);
+  return { attempted: true, sent: true, ...result };
+};
+
+const sendLogisticsStatusNotification = async (logistics, oldStatus) => {
+  const phone = getLogisticsNotificationPhone(logistics);
+  if (!phone) {
+    return { attempted: false, sent: false, reason: "No customerPhone/recipientPhone on logistics record" };
+  }
+
+  const contentSid = process.env.TWILIO_WHATSAPP_CONTENT_SID;
+
+  if (contentSid) {
+    const templateVariables = {
+      1: oldStatus,
+      2: logistics.status
+    };
+
+    const result = await whatsappService.sendTemplateMessage(phone, contentSid, templateVariables);
+    return { attempted: true, sent: true, mode: "template", ...result };
+  }
+
+  const message = `AgriLink update: your logistics status changed from ${oldStatus} to ${logistics.status}.`;
+  const result = await whatsappService.sendMessage(phone, message);
+  return { attempted: true, sent: true, mode: "text", ...result };
+};
+
+const sendLogisticsDeleteNotification = async (logistics) => {
+  const phone = getLogisticsNotificationPhone(logistics);
+  if (!phone) {
+    return { attempted: false, sent: false, reason: "No customerPhone/recipientPhone on logistics record" };
+  }
+
+  const message = `AgriLink: Logistics record for order ${logistics.orderId} has been cancelled. Status was: ${logistics.status}.`;
+  const result = await whatsappService.sendMessage(phone, message);
+  return { attempted: true, sent: true, ...result };
+};
 
 // CREATE
 export const createLogistics = asyncHandler(async (req, res) => {
-  const logistics = await Logistics.create(req.body);
-  res.status(201).json(logistics);
+  let payload = { ...req.body };
+
+  // Auto-populate customerPhone from Order buyer if not provided
+  if (payload.orderId && !payload.customerPhone) {
+    try {
+      const Order = (await import("../models/order.js")).default;
+      const order = await Order.findById(payload.orderId).populate("buyerId", "phone");
+      if (order?.buyerId?.phone) {
+        payload.customerPhone = order.buyerId.phone;
+        console.log(`ℹ️ Auto-populated customerPhone from Order buyer: ${order.buyerId.phone}`);
+      }
+    } catch (error) {
+      console.error("Could not fetch customerPhone from Order:", error.message);
+    }
+  }
+
+  const logistics = await Logistics.create(payload);
+  let whatsappNotification = { attempted: false, sent: false };
+
+  try {
+    whatsappNotification = await sendLogisticsCreateNotification(logistics);
+  } catch (error) {
+    console.error("WhatsApp notification failed on logistics create:", error.message);
+    whatsappNotification = {
+      attempted: true,
+      sent: false,
+      error: error.message
+    };
+  }
+
+  if (whatsappNotification?.sent) {
+    console.log(
+      `✅ WhatsApp sent (Logistics CREATE) | SID: ${whatsappNotification.sid} | To: ${whatsappNotification.to} | Status: ${whatsappNotification.status}`
+    );
+  } else {
+    console.log(
+      `ℹ️ WhatsApp not sent (Logistics CREATE) | Reason: ${whatsappNotification?.reason || whatsappNotification?.error || "Unknown"}`
+    );
+  }
+
+  res.status(201).json({
+    success: true,
+    message: "Logistics record created successfully",
+    data: logistics,
+    whatsappNotification
+  });
 });
 
 // GET ALL (with filtering + pagination)
@@ -17,13 +109,35 @@ export const getLogistics = asyncHandler(async (req, res) => {
     query.status = status;
   }
 
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+
+  // Get total count for pagination
+  const totalRecords = await Logistics.countDocuments(query);
+  const totalPages = Math.ceil(totalRecords / limitNum);
+
   const logistics = await Logistics.find(query)
     .populate("orderId")
-    .limit(limit * 1)
-    .skip((page - 1) * limit)
+    .limit(limitNum)
+    .skip((pageNum - 1) * limitNum)
     .sort({ createdAt: -1 });
 
-  res.json(logistics);
+  res.json({
+    success: true,
+    message: "Logistics records retrieved successfully",
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalRecords,
+      recordsPerPage: limitNum,
+      hasNextPage: pageNum < totalPages,
+      hasPrevPage: pageNum > 1
+    },
+    filters: {
+      status: status || "all"
+    },
+    data: logistics
+  });
 });
 
 // UPDATE STATUS
@@ -35,6 +149,7 @@ export const updateLogistics = asyncHandler(async (req, res) => {
     throw new Error("Logistics not found");
   }
 
+  const oldStatus = logistics.status;
   logistics.status = req.body.status || logistics.status;
 
   if (req.body.status === "Delivered") {
@@ -42,7 +157,37 @@ export const updateLogistics = asyncHandler(async (req, res) => {
   }
 
   const updated = await logistics.save();
-  res.json(updated);
+  let whatsappNotification = { attempted: false, sent: false, reason: "Status unchanged" };
+
+  if (oldStatus !== updated.status) {
+    try {
+      whatsappNotification = await sendLogisticsStatusNotification(updated, oldStatus);
+    } catch (error) {
+      console.error("WhatsApp notification failed on logistics status update:", error.message);
+      whatsappNotification = {
+        attempted: true,
+        sent: false,
+        error: error.message
+      };
+    }
+  }
+
+  if (whatsappNotification?.sent) {
+    console.log(
+      `✅ WhatsApp sent (Logistics STATUS) | SID: ${whatsappNotification.sid} | To: ${whatsappNotification.to} | ${oldStatus} -> ${updated.status}`
+    );
+  } else {
+    console.log(
+      `ℹ️ WhatsApp not sent (Logistics STATUS) | Reason: ${whatsappNotification?.reason || whatsappNotification?.error || "Unknown"}`
+    );
+  }
+  
+  res.json({
+    success: true,
+    message: `Logistics status updated from "${oldStatus}" to "${updated.status}"`,
+    data: updated,
+    whatsappNotification
+  });
 });
 
 // DELETE
@@ -54,6 +199,38 @@ export const deleteLogistics = asyncHandler(async (req, res) => {
     throw new Error("Logistics not found");
   }
 
+  let whatsappNotification = { attempted: false, sent: false };
+
+  try {
+    whatsappNotification = await sendLogisticsDeleteNotification(logistics);
+  } catch (error) {
+    console.error("WhatsApp notification failed on logistics delete:", error.message);
+    whatsappNotification = {
+      attempted: true,
+      sent: false,
+      error: error.message
+    };
+  }
+
   await logistics.deleteOne();
-  res.json({ message: "Logistics cancelled successfully" });
+
+  if (whatsappNotification?.sent) {
+    console.log(
+      `✅ WhatsApp sent (Logistics DELETE) | SID: ${whatsappNotification.sid} | To: ${whatsappNotification.to} | Status was: ${logistics.status}`
+    );
+  } else {
+    console.log(
+      `ℹ️ WhatsApp not sent (Logistics DELETE) | Reason: ${whatsappNotification?.reason || whatsappNotification?.error || "Unknown"}`
+    );
+  }
+  
+  res.json({
+    success: true,
+    message: "Logistics record cancelled successfully",
+    data: {
+      deletedId: req.params.id,
+      deletedStatus: logistics.status
+    },
+    whatsappNotification
+  });
 });

@@ -20,6 +20,14 @@ const logisticsSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    customerPhone: {
+      type: String,
+      trim: true
+    },
+    recipientPhone: {
+      type: String,
+      trim: true
+    },
     status: {
       type: String,
       enum: [

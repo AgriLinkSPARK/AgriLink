@@ -1,7 +1,7 @@
 // routes/productRoutes.js
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js";
-import { createProduct, getProducts, updateProduct, deleteProduct } from "../controllers/productController.js";
+import { createProduct, getProducts, updateProduct, deleteProduct, getProductById } from "../controllers/productController.js";
 import { upload } from "../config/multerCloudinary.js";
 
 const router = express.Router();
@@ -31,6 +31,7 @@ router.put(
   updateProduct
 );
 
+router.get("/:id", protect,authorize("farmer") ,getProductById);
 router.delete("/:id", protect, authorize("farmer"), deleteProduct);
 
 export default router;

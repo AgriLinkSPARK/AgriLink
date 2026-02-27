@@ -3,6 +3,26 @@ tags:
     description: Farmer product management APIs
 
 paths:
+  /api/products/all:
+    get:
+      summary: Get all in-stock products (customer-facing)
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of all in-stock products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        401:
+          description: Unauthorized
+        500:
+          description: Server error
+
   /api/products:
     post:
       summary: Create a new product

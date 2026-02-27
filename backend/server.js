@@ -53,7 +53,7 @@ mongoose
   .catch((err) => console.error("MongoDB connection error:", err));
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("🟡 MongoDB connected \n🟢 Oh God, Please Don't Stop."))
+  .then(() => console.log("🟡 MongoDB connected"))
   .catch(err => console.error("MongoDB connection error:", err));
 
 // ─── Health check ─────────────────────────────────────────────────────────────

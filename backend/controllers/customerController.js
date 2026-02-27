@@ -190,7 +190,7 @@ export const deleteCustomerProfile = async (req, res) => {
 
 
 // Get all stores (for customers)
-export const getAllStoresForCustomer = async (req, res) => {
+export const getAllStores = async (req, res) => {
   try {
     // Ensure only customer can access
     if (req.user.role !== "customer") {

@@ -3,6 +3,66 @@ tags:
     description: Customer profile and dashboard management
 
 paths:
+  /api/customer/register:
+    post:
+      summary: Register Customer (legacy customer route)
+      tags: [Customer]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        201:
+          description: Registration successful
+        400:
+          description: Invalid input or email already exists
+
+  /api/customer/login:
+    post:
+      summary: Login Customer (legacy customer route)
+      tags: [Customer]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        200:
+          description: Login successful
+        401:
+          description: Invalid credentials
+        403:
+          description: Use admin/farmer login endpoint
+
   /api/customer/dashboard:
     get:
       summary: Get Customer Dashboard

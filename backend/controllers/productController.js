@@ -119,3 +119,46 @@ export const getProductById = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// Search products inside farmer's store
+export const searchProducts = async (req, res) => {
+  try {
+    const { keyword } = req.query;
+
+    const store = await Store.findOne({ farmer: req.user.id });
+    if (!store) {
+      return res.status(404).json({ message: "Store not found" });
+    }
+
+    let query = { store: store._id };
+
+    if (keyword && keyword.trim() !== "") {
+      query.$or = [
+        { name: { $regex: keyword, $options: "i" } },
+        { category: { $regex: keyword, $options: "i" } },
+        { description: { $regex: keyword, $options: "i" } }
+      ];
+    }
+
+    const products = await Product.find(query);
+
+    if (products.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        message: "No matching products found",
+        products: []
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      products
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

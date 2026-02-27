@@ -1,12 +1,12 @@
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 import { checkout, getMyOrders, markAsPaid, cancelOrder } from "../controllers/orderController.js";
 
 const router = express.Router();
 
-router.post("/checkout", protect, checkout);
-router.get("/my-orders", protect, getMyOrders);
-router.put("/pay/:id", protect, markAsPaid);
-router.put("/cancel/:id", protect, cancelOrder);
+router.post("/checkout", protect, authorize("customer"), checkout);
+router.get("/my-orders", protect, authorize("customer"), getMyOrders);
+router.put("/pay/:id", protect, authorize("customer"), markAsPaid);
+router.put("/cancel/:id", protect, authorize("customer"), cancelOrder);
 
 export default router;

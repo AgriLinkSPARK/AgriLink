@@ -24,7 +24,6 @@ router.post("/create-payment-intent/:orderId", protect, createPaymentIntent);
 // GET /api/payment/status/:orderId
 // Authenticated buyer checks the current payment + order status
 router.get("/status/:orderId", protect, getPaymentStatus);
-=======
 
 
 

@@ -1,4 +1,5 @@
 import express from "express";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 import {
   createReview,
   getAllReviews,
@@ -10,10 +11,10 @@ import {
 const router = express.Router();
 
 // Routes
-router.post("/", createReview);
-router.get("/", getAllReviews);
-router.get("/:id", getReviewById);
-router.put("/:id", updateReview);
-router.delete("/:id", deleteReview);
+router.post("/", protect, authorize("customer"), createReview);
+router.get("/", protect, authorize("customer"), getAllReviews);
+router.get("/:id", protect, authorize("customer"), getReviewById);
+router.put("/:id", protect, authorize("customer"), updateReview);
+router.delete("/:id", protect, authorize("customer"), deleteReview);
 
 export default router;

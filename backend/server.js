@@ -16,6 +16,8 @@ import farmerRoutes from "./routes/farmerRoutes.js";
 import logisticsRoutes from "./routes/logisticsRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./docs/swagger.js";
 
 // Error handling middleware
 import { errorMiddleware } from "./utils/errorHandler.js";
@@ -48,6 +50,10 @@ app.use("/api/farmer", farmerRoutes);
 app.use("/api/logistics", logisticsRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/messages", messageRoutes);
+
+// Swagger Documentation Route
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 
 // Error handling middleware (must be last)
 app.use(errorMiddleware);

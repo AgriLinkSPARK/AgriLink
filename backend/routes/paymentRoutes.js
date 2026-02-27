@@ -1,5 +1,6 @@
 // backend/routes/paymentRoutes.js
 import express from "express";
+<<<<<<< HEAD
 import { protect } from "../middleware/authMiddleware.js";
 import {
     createPaymentIntent,
@@ -23,5 +24,14 @@ router.post("/create-payment-intent/:orderId", protect, createPaymentIntent);
 // GET /api/payment/status/:orderId
 // Authenticated buyer checks the current payment + order status
 router.get("/status/:orderId", protect, getPaymentStatus);
+=======
+import { protect, authorize } from "../middleware/authMiddleware.js";
+import { payOrder } from "../controllers/paymentController.js";
+
+const router = express.Router();
+
+// Simulated payment
+router.put("/:id", protect, authorize("customer"), payOrder);
+>>>>>>> a125ac9c158cf646341ac6653f0cec95cd7e78c7
 
 export default router;

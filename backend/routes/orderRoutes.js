@@ -13,6 +13,15 @@ router.get("/my-orders", protect, getMyOrders);
 
 // PUT  /api/orders/cancel/:id → cancel a pending order
 router.put("/cancel/:id", protect, cancelOrder);
+import { protect, authorize } from "../middleware/authMiddleware.js";
+import { checkout, getMyOrders, markAsPaid, cancelOrder } from "../controllers/orderController.js";
+
+
+
+router.post("/checkout", protect, authorize("customer"), checkout);
+router.get("/my-orders", protect, authorize("customer"), getMyOrders);
+router.put("/pay/:id", protect, authorize("customer"), markAsPaid);
+router.put("/cancel/:id", protect, authorize("customer"), cancelOrder);
 
 // NOTE: /api/orders/pay/:id (simulated) has been removed.
 // Payment is now handled exclusively via Stripe:

@@ -1,22 +1,9 @@
 // backend/routes/orderRoutes.js
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
-import { checkout, getMyOrders, cancelOrder } from "../controllers/orderController.js";
-
-const router = express.Router();
-
-// POST /api/orders/checkout  → create order from cart, returns orderId for payment
-router.post("/checkout", protect, checkout);
-
-// GET  /api/orders/my-orders → fetch authenticated buyer's orders
-router.get("/my-orders", protect, getMyOrders);
-
-// PUT  /api/orders/cancel/:id → cancel a pending order
-router.put("/cancel/:id", protect, cancelOrder);
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import { checkout, getMyOrders, markAsPaid, cancelOrder } from "../controllers/orderController.js";
 
-
+const router = express.Router();
 
 router.post("/checkout", protect, authorize("customer"), checkout);
 router.get("/my-orders", protect, authorize("customer"), getMyOrders);

@@ -13,7 +13,9 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import farmerRoutes from "./routes/farmerRoutes.js";
-
+import logisticsRoutes from "./routes/logisticsRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 dotenv.config();
 
@@ -40,7 +42,9 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/farmer", farmerRoutes);
-app.use("/api/product", productRoutes);
+app.use("/api/logistics", logisticsRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;

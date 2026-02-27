@@ -1,4 +1,5 @@
 import express from "express";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 import {
   sendMessage,
   getConversation,
@@ -7,17 +8,17 @@ import {
 
 const router = express.Router();
 
-// Send a message
-router.post("/", sendMessage);
+// Send a message (customer and farmer can message)
+router.post("/", protect, authorize("customer", "farmer"), sendMessage);
 
 // Get messages between two users
-router.get("/", getConversation);
+router.get("/", protect, authorize("customer", "farmer"), getConversation);
 
 // Edit a message
-router.put("/:id", editMessage);
+router.put("/:id", protect, authorize("customer", "farmer"), editMessage);
 
 // Delete a message
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", protect, authorize("customer", "farmer"), async (req, res) => {
     const message = await Message.findById(req.params.id);
     if (!message) {
         res.status(404);

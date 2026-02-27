@@ -1,0 +1,255 @@
+tags:
+  - name: Products
+    description: Farmer product management APIs
+
+paths:
+  /api/products/all:
+    get:
+      summary: Get all in-stock products (customer-facing)
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of all in-stock products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        401:
+          description: Unauthorized
+        500:
+          description: Server error
+
+  /api/products:
+    post:
+      summary: Create a new product
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - name
+                - category
+                - price
+                - quantity
+              properties:
+                name:
+                  type: string
+                  example: Fresh Tomatoes
+                category:
+                  type: string
+                  example: Vegetables
+                description:
+                  type: string
+                  example: Organic tomatoes from our farm
+                price:
+                  type: number
+                  example: 50
+                quantity:
+                  type: number
+                  example: 100
+                unit:
+                  type: string
+                  example: kg
+                availability:
+                  type: boolean
+                  example: true
+                harvestDate:
+                  type: string
+                  format: date
+                  example: 2026-02-20
+                mainImage:
+                  type: string
+                  format: binary
+                extraImages:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        201:
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized
+        500:
+          description: Server error
+
+    get:
+      summary: Get all farmer products
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        401:
+          description: Unauthorized
+        404:
+          description: Store not found
+
+  /api/products/search:
+    get:
+      summary: Search products in farmer's store
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+          description: Search keyword (name, category, description)
+          example: tomato
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  message:
+                    type: string
+                  products:
+                    type: array
+        401:
+          description: Unauthorized
+        404:
+          description: Store not found
+
+  /api/products/{id}:
+    get:
+      summary: Get product by ID
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: Product details
+          content:
+            application/json:
+              schema:
+                type: object
+        403:
+          description: Not authorized to view this product
+        404:
+          description: Product not found
+        401:
+          description: Unauthorized
+
+    put:
+      summary: Update product
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                category:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                quantity:
+                  type: number
+                unit:
+                  type: string
+                availability:
+                  type: boolean
+                harvestDate:
+                  type: string
+                  format: date
+                mainImage:
+                  type: string
+                  format: binary
+                extraImages:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        200:
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        403:
+          description: Not authorized to update this product
+        404:
+          description: Product not found
+        401:
+          description: Unauthorized
+
+    delete:
+      summary: Delete product
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        403:
+          description: Not authorized to delete this product
+        404:
+          description: Product not found
+        401:
+          description: Unauthorized

@@ -1,0 +1,154 @@
+tags:
+  - name: Reviews
+    description: Product reviews management
+
+paths:
+  /api/reviews:
+    post:
+      summary: Create Review
+      tags: [Reviews]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - userId
+                - rating
+              properties:
+                productId:
+                  type: string
+                  example: 65f1234567890abcdef12345
+                userId:
+                  type: string
+                  example: 65f1234567890abcdef67890
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                comment:
+                  type: string
+                  example: Excellent quality products!
+      responses:
+        201:
+          description: Review created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        500:
+          description: Server error
+
+    get:
+      summary: Get All Reviews
+      tags: [Reviews]
+      responses:
+        200:
+          description: List of all reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                    productId:
+                      type: string
+                    userId:
+                      type: string
+                    rating:
+                      type: integer
+                    comment:
+                      type: string
+        500:
+          description: Server error
+
+  /api/reviews/{id}:
+    get:
+      summary: Get Review by ID
+      tags: [Reviews]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: Review details
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Review not found
+        500:
+          description: Server error
+
+    put:
+      summary: Update Review
+      tags: [Reviews]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 4
+                comment:
+                  type: string
+                  example: Updated review comment
+      responses:
+        200:
+          description: Review updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Review not found
+        500:
+          description: Server error
+
+    delete:
+      summary: Delete Review
+      tags: [Reviews]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: Review deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Review not found
+        500:
+          description: Server error

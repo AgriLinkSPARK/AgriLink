@@ -1,0 +1,240 @@
+tags:
+  - name: Admin
+    description: Admin user management APIs
+
+paths:
+  /api/admin/users:
+    post:
+      summary: Create User (Any Role)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - role
+              properties:
+                name:
+                  type: string
+                  example: New Farmer
+                email:
+                  type: string
+                  format: email
+                  example: newfarmer@example.com
+                role:
+                  type: string
+                  enum: [farmer, customer]
+                  example: farmer
+      responses:
+        201:
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    type: object
+        400:
+          description: Invalid input or user already exists
+        401:
+          description: Unauthorized - Admin required
+        403:
+          description: Forbidden
+
+    get:
+      summary: Get All Users (with optional role filter)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [farmer, customer, admin]
+          description: Filter by role
+      responses:
+        200:
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        401:
+          description: Unauthorized - Admin required
+        403:
+          description: Forbidden
+
+  /api/admin/create-farmer:
+    post:
+      summary: Create Farmer (Legacy Endpoint)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                  example: Legacy Farmer
+                email:
+                  type: string
+                  format: email
+                  example: legacyfarmer@example.com
+      responses:
+        201:
+          description: Farmer created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized - Admin required
+        403:
+          description: Forbidden
+
+  /api/admin/users/category/{category}:
+    get:
+      summary: Get Users by Category/Role
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: category
+          required: true
+          schema:
+            type: string
+            enum: [farmer, customer, admin]
+          example: farmer
+      responses:
+        200:
+          description: List of users in category
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        401:
+          description: Unauthorized - Admin required
+        403:
+          description: Forbidden
+
+  /api/admin/users/{userId}:
+    get:
+      summary: Get User by ID
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: User details
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized - Admin required
+        403:
+          description: Forbidden
+        404:
+          description: User not found
+
+    put:
+      summary: Update User
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Updated Name
+                email:
+                  type: string
+                  format: email
+                  example: updatedemail@example.com
+                role:
+                  type: string
+                  enum: [farmer, customer, admin]
+                  example: farmer
+      responses:
+        200:
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        401:
+          description: Unauthorized - Admin required
+        403:
+          description: Forbidden
+        404:
+          description: User not found
+
+    delete:
+      summary: Delete User
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Unauthorized - Admin required
+        403:
+          description: Forbidden
+        404:
+          description: User not found

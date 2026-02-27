@@ -1,0 +1,137 @@
+tags:
+  - name: Logistics
+    description: Order tracking and logistics management
+
+paths:
+  /api/logistics:
+    post:
+      summary: Create Logistics Entry
+      tags: [Logistics]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderId
+                - status
+              properties:
+                orderId:
+                  type: string
+                  example: 65f1234567890abcdef12345
+                status:
+                  type: string
+                  enum: [Pending, In Transit, Delivered]
+                  example: Pending
+                estimatedDeliveryDate:
+                  type: string
+                  format: date
+                  example: 2026-03-05
+                trackingNumber:
+                  type: string
+                  example: TRACK123456
+      responses:
+        201:
+          description: Logistics entry created
+          content:
+            application/json:
+              schema:
+                type: object
+        500:
+          description: Server error
+
+    get:
+      summary: Get All Logistics (with filtering and pagination)
+      tags: [Logistics]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, In Transit, Delivered]
+          description: Filter by status
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Items per page
+      responses:
+        200:
+          description: List of logistics entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        500:
+          description: Server error
+
+  /api/logistics/{id}:
+    put:
+      summary: Update Logistics Status
+      tags: [Logistics]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Pending, In Transit, Delivered]
+                  example: Delivered
+      responses:
+        200:
+          description: Logistics status updated
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Logistics not found
+        500:
+          description: Server error
+
+    delete:
+      summary: Cancel/Delete Logistics
+      tags: [Logistics]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: Logistics cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Logistics not found
+        500:
+          description: Server error

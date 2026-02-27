@@ -1,6 +1,6 @@
 // backend/routes/paymentRoutes.js
 import express from "express";
-<<<<<<< HEAD
+
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import {
     createPaymentIntent,
@@ -25,9 +25,5 @@ router.post("/create-payment-intent/:orderId", protect, createPaymentIntent);
 // Authenticated buyer checks the current payment + order status
 router.get("/status/:orderId", protect, getPaymentStatus);
 
-
-
-
->>>>>>> a125ac9c158cf646341ac6653f0cec95cd7e78c7
 
 export default router;

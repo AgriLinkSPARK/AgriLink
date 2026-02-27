@@ -1,10 +1,13 @@
 // routes/productRoutes.js
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js";
-import { createProduct, getProducts, updateProduct, deleteProduct } from "../controllers/productController.js";
+import { createProduct, getProducts, getAllProducts, updateProduct, deleteProduct } from "../controllers/productController.js";
 import { upload } from "../config/multerCloudinary.js";
 
 const router = express.Router();
+
+// ── Customer-facing: browse all in-stock products (any authenticated role) ──
+router.get("/all", protect, getAllProducts);
 
 // Only farmers can manage their products
 router.post(

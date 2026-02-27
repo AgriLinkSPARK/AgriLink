@@ -1,4 +1,4 @@
-// backend/models/Order.js
+// backend/models/order.js
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
@@ -39,10 +39,34 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: ["Unpaid", "Paid", "Failed"],
       default: "Unpaid"
+    },
+
+    // ─── Stripe Payment Fields ────────────────────────────────────────────────
+    stripePaymentIntentId: {
+      type: String,
+      default: null,
+      index: true          // fast webhook lookups
+    },
+
+    stripeClientSecret: {
+      type: String,
+      default: null
+    },
+
+    // Full Stripe charge/payment-intent snapshot stored after webhook confirms
+    stripePaymentDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+
+    // ISO timestamp of when Stripe confirmed payment
+    paidAt: {
+      type: Date,
+      default: null
     }
+    // ─────────────────────────────────────────────────────────────────────────
   },
   { timestamps: true }
 );
 
-// Use ESM export
 export default mongoose.model("Order", orderSchema);

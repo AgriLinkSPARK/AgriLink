@@ -1,5 +1,6 @@
 // backend/models/Order.js
 import mongoose from "mongoose";
+import { ORDER_STATUS, PAYMENT_STATUS } from "../constants/index.js";
 
 const orderSchema = new mongoose.Schema(
   {
@@ -31,14 +32,14 @@ const orderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"],
-      default: "Pending"
+      enum: Object.values(ORDER_STATUS),
+      default: ORDER_STATUS.PENDING
     },
 
     paymentStatus: {
       type: String,
-      enum: ["Unpaid", "Paid", "Failed"],
-      default: "Unpaid"
+      enum: Object.values(PAYMENT_STATUS),
+      default: PAYMENT_STATUS.PENDING
     }
   },
   { timestamps: true }

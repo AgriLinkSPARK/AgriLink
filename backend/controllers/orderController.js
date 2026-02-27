@@ -1,106 +1,58 @@
-import Order from "../models/order.js";
-import Cart from "../models/Cart.js";
-import User from "../models/User.js";
-import { 
-  sendOrderConfirmationEmail, 
-  sendOrderCancellationEmail, 
-  sendPaymentConfirmationEmail 
-} from "../utils/mailer.js";
+// controllers/orderController.js
+// Controller layer - handles HTTP requests/responses only
+// Business logic moved to service layer (SOLID: SRP, DIP)
+
+import orderService from "../services/orderService.js";
+import emailService from "../services/emailService.js";
+import authService from "../services/authService.js";
+import { asyncHandler } from "../utils/errorHandler.js";
+import { sendSuccess, sendCreated } from "../utils/responseHandler.js";
+import { SUCCESS_MESSAGES } from "../constants/index.js";
 
 // Checkout → create order from cart
-export const checkout = async (req, res) => {
-  try {
-    const cart = await Cart.findOne({ buyerId: req.user.id });
-    if (!cart || cart.items.length === 0) return res.status(400).json({ message: "Cart is empty" });
+export const checkout = asyncHandler(async (req, res) => {
+  // Business logic handled by service
+  const order = await orderService.createOrderFromCart(req.user.id);
 
-    // Simulated total price
-    const totalPrice = cart.items.reduce((sum, item) => sum + item.quantity * 10, 0);
+  // Send order confirmation email (best-effort, non-blocking)
+  const user = await authService.getUserById(req.user.id);
+  emailService.sendOrderConfirmation(user.email, user.name, order._id, order.totalPrice);
 
-    const order = await Order.create({ buyerId: req.user.id, items: cart.items, totalPrice });
-
-    // Clear cart
-    cart.items = [];
-    await cart.save();
-
-    // Send order confirmation email (best-effort)
-    try {
-      const user = await User.findById(req.user.id);
-      if (user) {
-        await sendOrderConfirmationEmail(user.email, user.name, order._id, totalPrice);
-      }
-    } catch (err) {
-      console.error("Failed to send order confirmation email:", err);
-    }
-
-    res.status(201).json({ message: "Order created. Proceed to payment.", order });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-};
+  sendCreated(
+    res,
+    { order },
+    "Order created successfully. Proceed to payment."
+  );
+});
 
 // Get orders of logged-in buyer
-export const getMyOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ buyerId: req.user.id }).populate("items.productId");
-    res.json(orders);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-};
+export const getMyOrders = asyncHandler(async (req, res) => {
+  // Business logic handled by service
+  const orders = await orderService.getOrdersByBuyerId(req.user.id);
+
+  sendSuccess(res, orders);
+});
 
 // Mark order as paid (simulated)
-export const markAsPaid = async (req, res) => {
-  try {
-    const order = await Order.findOne({ _id: req.params.id, buyerId: req.user.id });
-    if (!order) return res.status(404).json({ message: "Order not found" });
+export const markAsPaid = asyncHandler(async (req, res) => {
+  // Business logic handled by service
+  const order = await orderService.markOrderAsPaid(req.params.id, req.user.id);
 
-    order.paymentStatus = "Paid";
-    order.status = "Confirmed";
-    await order.save();
+  // Send payment confirmation email (best-effort, non-blocking)
+  const user = await authService.getUserById(req.user.id);
+  emailService.sendPaymentConfirmation(user.email, user.name, order._id, order.totalPrice);
 
-    // Send payment confirmation email (best-effort)
-    try {
-      const user = await User.findById(req.user.id);
-      if (user) {
-        await sendPaymentConfirmationEmail(user.email, user.name, order._id, order.totalPrice);
-      }
-    } catch (err) {
-      console.error("Failed to send payment confirmation email:", err);
-    }
-
-    res.json({ message: "Payment successful (simulated)", order });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-};
+  sendSuccess(res, { order }, "Payment successful (simulated)");
+});
 
 // Cancel order before shipping
-export const cancelOrder = async (req, res) => {
-  try {
-    const order = await Order.findOne({ _id: req.params.id, buyerId: req.user.id });
-    if (!order) return res.status(404).json({ message: "Order not found" });
+export const cancelOrder = asyncHandler(async (req, res) => {
+  // Business logic handled by service
+  const order = await orderService.cancelOrder(req.params.id, req.user.id);
 
-    if (order.status !== "Pending") return res.status(400).json({ message: "Order cannot be cancelled" });
+  // Send order cancellation email (best-effort, non-blocking)
+  const user = await authService.getUserById(req.user.id);
+  emailService.sendOrderCancellation(user.email, user.name, order._id);
 
-    order.status = "Cancelled";
-    await order.save();
-
-    // Send order cancellation email (best-effort)
-    try {
-      const user = await User.findById(req.user.id);
-      if (user) {
-        await sendOrderCancellationEmail(user.email, user.name, order._id);
-      }
-    } catch (err) {
-      console.error("Failed to send order cancellation email:", err);
-    }
-
-    res.json({ message: "Order cancelled successfully", order });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-};
+  sendSuccess(res, { order }, "Order cancelled successfully");
+});

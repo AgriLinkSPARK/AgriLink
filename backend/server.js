@@ -16,9 +16,16 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import farmerRoutes from "./routes/farmerRoutes.js";
+import logisticsRoutes from "./routes/logisticsRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 
 // Stripe webhook handler (needs raw body — registered before express.json())
 import { stripeWebhook } from "./controllers/paymentController.js";
+// Error handling middleware
+import { errorMiddleware } from "./utils/errorHandler.js";
+
+dotenv.config();
 
 const app = express();
 
@@ -42,6 +49,10 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("🟡 MongoDB connected \n🟢 Oh God, Please Don't Stop."))
+  .catch(err => console.error("MongoDB connection error:", err));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/", (req, res) => res.send("AgriLink API is running..."));
@@ -56,7 +67,13 @@ app.use("/api/payment", paymentRoutes);   // authenticated payment routes
 app.use("/api/customer", customerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/farmer", farmerRoutes);
+app.use("/api/logistics", logisticsRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/messages", messageRoutes);
+
+// Error handling middleware (must be last)
+app.use(errorMiddleware);
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🔴 Server running on port ${PORT}`));

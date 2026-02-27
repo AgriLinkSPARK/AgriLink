@@ -17,10 +17,9 @@ const router = express.Router(); // create router instance
 router.post("/register", registerCustomer);
 router.post("/login", loginCustomer);
 
-// // Customer Dashboard (protected)
-// router.get("/dashboard", protect, customerDashboard);
+// Customer Dashboard (protected)
+router.get("/dashboard", protect, customerDashboard);
 
-// export default router; // default export
 // Profile (protected)
 router.get("/profile", protect, getCustomerProfile);
 router.put("/profile", protect, updateCustomerProfile);

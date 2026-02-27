@@ -1,5 +1,6 @@
 // backend/models/order.js
 import mongoose from "mongoose";
+import { ORDER_STATUS, PAYMENT_STATUS } from "../constants/index.js";
 
 const orderSchema = new mongoose.Schema(
   {
@@ -31,8 +32,8 @@ const orderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"],
-      default: "Pending"
+      enum: Object.values(ORDER_STATUS),
+      default: ORDER_STATUS.PENDING
     },
 
     paymentStatus: {
@@ -53,7 +54,6 @@ const orderSchema = new mongoose.Schema(
       default: null
     },
 
-    // Full Stripe charge/payment-intent snapshot stored after webhook confirms
     stripePaymentDetails: {
       type: mongoose.Schema.Types.Mixed,
       default: null
@@ -62,7 +62,7 @@ const orderSchema = new mongoose.Schema(
     // ISO timestamp of when Stripe confirmed payment
     paidAt: {
       type: Date,
-      default: null
+      default: null       // ← removed enum & string default
     }
     // ─────────────────────────────────────────────────────────────────────────
   },

@@ -27,8 +27,6 @@ import { stripeWebhook } from "./controllers/paymentController.js";
 // Error handling middleware
 import { errorMiddleware } from "./utils/errorHandler.js";
 
-dotenv.config();
-
 const app = express();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,12 +47,8 @@ app.use(express.json());
 // ─── MongoDB connection ───────────────────────────────────────────────────────
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
+  .then(() => console.log("🟢 MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("🟡 MongoDB connected"))
-  .catch(err => console.error("MongoDB connection error:", err));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/", (req, res) => res.send("AgriLink API is running..."));

@@ -7,11 +7,32 @@ import { asyncHandler } from "../utils/errorHandler.js";
 import { sendSuccess, sendCreated } from "../utils/responseHandler.js";
 import { SUCCESS_MESSAGES } from "../constants/index.js";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/products/all  (public — any logged-in user, including customers)
+// Returns all products across all stores so customers can browse & add to cart
+// ─────────────────────────────────────────────────────────────────────────────
+export const getAllProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ availability: "in-Stock" })
+      .populate("store", "name")
+      .sort({ createdAt: -1 });
+    res.json(products);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Create product
 export const createProduct = asyncHandler(async (req, res) => {
   console.log("BODY:", req.body);
   console.log("FILES:", req.files);
 
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
+    // Find the farmer's store
+    const store = await Store.findOne({ farmer: req.user.id });
+    if (!store) return res.status(404).json({ message: "Store not found" });
   // Business logic handled by service
   const product = await productService.createProduct(
     req.user.id,

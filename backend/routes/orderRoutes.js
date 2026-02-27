@@ -1,6 +1,7 @@
 // backend/routes/orderRoutes.js
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js"; // ← import both
+
 import { checkout, getMyOrders, markAsPaid, cancelOrder } from "../controllers/orderController.js";
 
 const router = express.Router();

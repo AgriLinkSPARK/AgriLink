@@ -17,6 +17,9 @@ import logisticsRoutes from "./routes/logisticsRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 
+// Error handling middleware
+import { errorMiddleware } from "./utils/errorHandler.js";
+
 dotenv.config();
 
 const app = express();
@@ -27,7 +30,7 @@ app.use(express.json());
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("🟢 MongoDB connected"))
+  .then(() => console.log("🟡 MongoDB connected \n🟢 Oh God, Please Don't Stop."))
   .catch(err => console.error("MongoDB connection error:", err));
 
 // Test route
@@ -45,6 +48,9 @@ app.use("/api/farmer", farmerRoutes);
 app.use("/api/logistics", logisticsRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/messages", messageRoutes);
+
+// Error handling middleware (must be last)
+app.use(errorMiddleware);
 
 // Start server
 const PORT = process.env.PORT || 5000;

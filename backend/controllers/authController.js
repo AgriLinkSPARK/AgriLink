@@ -1,157 +1,107 @@
 // backend/controllers/authController.js
-import User from "../models/User.js";
-import Store from "../models/Store.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { sendWelcomeEmail, sendFarmerWelcomeEmail } from "../utils/mailer.js";
+// Controller layer - handles HTTP requests/responses only
+// Business logic moved to service layer (SOLID: SRP, DIP)
 
-// Generate JWT
-const generateToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
+import authService from "../services/authService.js";
+import emailService from "../services/emailService.js";
+import { asyncHandler } from "../utils/errorHandler.js";
+import { sendSuccess, sendCreated } from "../utils/responseHandler.js";
+import { USER_ROLES } from "../constants/index.js";
 
 // ==========================
 // Admin/Farmer login
 // ==========================
-export const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+export const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  
+  // Business logic handled by service
+  const loginData = await authService.loginUser(
+    email,
+    password,
+    [USER_ROLES.ADMIN, USER_ROLES.FARMER]
+  );
 
-    // Only admin/farmer
-    if (user.role === "customer") {
-      return res.status(403).json({ message: "Use customer login endpoint" });
-    }
-
-    let hasStore = null;
-
-    // 🔥 Only check for farmers
-    if (user.role === "farmer") {
-      const store = await Store.findOne({ farmer: user._id });
-      hasStore = !!store; // true or false
-    }
-
-    res.json({
-      token: generateToken(user),
-      role: user.role,
-      hasStore, // will be true/false for farmer, null for admin
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+  sendSuccess(res, loginData, "Login successful");
+});
 
 // ==========================
 // Customer registration
 // ==========================
-export const registerCustomer = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ message: "All fields required" });
+export const registerCustomer = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
 
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: "Email already exists" });
+  // Business logic handled by service
+  const customer = await authService.registerUser({
+    name,
+    email,
+    password,
+    role: USER_ROLES.CUSTOMER,
+  });
 
-    const hashed = await bcrypt.hash(password, 10);
-    const customer = await User.create({ name, email, password: hashed, role: "customer" });
-    // Send welcome email (best-effort)
-    try {
-      await sendWelcomeEmail(customer.email, customer.name);
-    } catch (err) {
-      console.error("Failed to send welcome email:", err);
-    }
+  // Send welcome email (best-effort, non-blocking)
+  emailService.sendCustomerWelcome(customer.email, customer.name);
 
-    res.status(201).json({ token: generateToken(customer), role: "customer" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+  const token = authService.generateToken(customer);
+  sendCreated(res, { token, role: customer.role }, "Registration successful");
+});
 
 // ==========================
 // Customer login
 // ==========================
-export const loginCustomer = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+export const loginCustomer = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
-    if (user.role !== "customer") {
-      return res.status(403).json({ message: "Use admin/farmer login endpoint" });
-    }
+  // Business logic handled by service
+  const loginData = await authService.loginUser(
+    email,
+    password,
+    [USER_ROLES.CUSTOMER]
+  );
 
-    res.json({ token: generateToken(user), role: "customer" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+  sendSuccess(res, loginData, "Login successful");
+});
 
 // ==========================
 // Farmer self-registration
 // ==========================
-export const registerFarmer = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ message: "All fields required" });
+export const registerFarmer = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
 
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: "Email already exists" });
+  // Business logic handled by service
+  const farmer = await authService.registerUser({
+    name,
+    email,
+    password,
+    role: USER_ROLES.FARMER,
+  });
 
-    const hashed = await bcrypt.hash(password, 10);
-    const farmer = await User.create({ name, email, password: hashed, role: "farmer" });
+  // Send farmer welcome email (best-effort, non-blocking)
+  emailService.sendFarmerWelcome(farmer.email, farmer.name);
 
-    // Send farmer welcome email (best-effort)
-    try {
-      await sendFarmerWelcomeEmail(farmer.email, farmer.name);
-    } catch (err) {
-      console.error("Failed to send farmer welcome email:", err);
-    }
-
-    res.status(201).json({ token: generateToken(farmer), role: "farmer" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+  const token = authService.generateToken(farmer);
+  sendCreated(res, { token, role: farmer.role }, "Farmer registration successful");
+});
 
 // ==========================
 // Farmer Dashboard
 // ==========================
-export const farmerDashboard = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user || user.role !== "farmer") {
-      return res.status(403).json({ message: "Only farmers can access" });
-    }
+export const farmerDashboard = asyncHandler(async (req, res) => {
+  // Business logic handled by service
+  const user = await authService.getUserById(req.user.id);
 
-    res.json({
-      message: "Welcome to Farmer Dashboard",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      },
-      data: {
-        crops: [],
-        orders: [],
-        stats: "Your farm stats here"
-      }
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+  const dashboardData = {
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    data: {
+      crops: [],
+      orders: [],
+      stats: "Your farm stats here",
+    },
+  };
+
+  sendSuccess(res, dashboardData, "Welcome to Farmer Dashboard");
+});

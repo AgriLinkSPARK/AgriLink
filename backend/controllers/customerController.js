@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Store from "../models/Store.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { sendWelcomeEmail, sendPasswordChangedEmail } from "../utils/mailer.js";
@@ -181,6 +182,27 @@ export const deleteCustomerProfile = async (req, res) => {
     await User.findByIdAndDelete(req.user.id);
 
     res.json({ message: "Customer account deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+// Get all stores (for customers)
+export const getAllStoresForCustomer = async (req, res) => {
+  try {
+    // Ensure only customer can access
+    if (req.user.role !== "customer") {
+      return res.status(403).json({ message: "Only customers can access stores" });
+    }
+
+    const stores = await Store.find().populate("owner", "name email");
+
+    res.json({
+      count: stores.length,
+      stores
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

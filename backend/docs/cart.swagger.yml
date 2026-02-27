@@ -1,0 +1,129 @@
+tags:
+  - name: Cart
+    description: Shopping cart management APIs
+
+paths:
+  /api/cart/add:
+    post:
+      summary: Add Product to Cart
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productId
+                - quantity
+              properties:
+                productId:
+                  type: string
+                  example: 65f1234567890abcdef12345
+                quantity:
+                  type: integer
+                  example: 5
+      responses:
+        200:
+          description: Product added to cart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buyerId:
+                    type: string
+                  items:
+                    type: array
+        500:
+          description: Server error
+
+  /api/cart:
+    get:
+      summary: Get Shopping Cart
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Cart details with populated products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buyerId:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId:
+                          type: object
+                        quantity:
+                          type: integer
+        500:
+          description: Server error
+
+  /api/cart/update/{productId}:
+    put:
+      summary: Update Cart Item Quantity
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - quantity
+              properties:
+                quantity:
+                  type: integer
+                  example: 10
+      responses:
+        200:
+          description: Cart item updated
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Item not found in cart
+        500:
+          description: Server error
+
+  /api/cart/remove/{productId}:
+    delete:
+      summary: Remove Product from Cart
+      tags: [Cart]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          example: 65f1234567890abcdef12345
+      responses:
+        200:
+          description: Product removed from cart
+          content:
+            application/json:
+              schema:
+                type: object
+        500:
+          description: Server error

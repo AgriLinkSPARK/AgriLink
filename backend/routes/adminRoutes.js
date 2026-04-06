@@ -7,6 +7,7 @@ import {
   getAllUsers,
   getUserById,
   updateUser,
+  updateUserPassword,
   deleteUser,
   getUsersByCategory,
 } from "../controllers/adminController.js";
@@ -36,6 +37,9 @@ router.get("/users/:userId", protect, authorize("admin"), getUserById);
 
 // Update/Edit user
 router.put("/users/:userId", protect, authorize("admin"), updateUser);
+
+// Update user password
+router.put("/users/:userId/password", protect, authorize("admin"), updateUserPassword);
 
 // Delete user
 router.delete("/users/:userId", protect, authorize("admin"), deleteUser);

@@ -45,12 +45,16 @@ class AuthService {
     const user = await User.findOne({ email });
     
     if (!user) {
+      console.log(`[LOGIN] User not found: ${email}`);
       throw new AppError(ERROR_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED);
     }
 
+    console.log(`[LOGIN] Found user ${email}, stored hash length: ${user.password.length}`);
     const isPasswordValid = await this.comparePasswords(password, user.password);
+    console.log(`[LOGIN] Password comparison result for ${email}: ${isPasswordValid}`);
     
     if (!isPasswordValid) {
+      console.log(`[LOGIN] Invalid password for ${email}`);
       throw new AppError(ERROR_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED);
     }
 

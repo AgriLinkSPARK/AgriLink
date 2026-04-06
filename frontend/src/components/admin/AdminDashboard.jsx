@@ -65,6 +65,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
       name: item.name || "",
       email: item.email || "",
       role: item.role || "customer",
+      password: "",
     });
   }
 
@@ -260,20 +261,45 @@ function AdminDashboard({ data, user, loading, error, actions }) {
 
                 <form className="grid gap-3" onSubmit={async (event) => {
                   event.preventDefault();
-                  const updated = await runAdminAction(async () => actions.updateUser(editingUser._id, editForm), "User updated successfully");
+                  const payload = {
+                    name: editForm.name,
+                    email: editForm.email,
+                    role: editForm.role,
+                  };
+                  const trimmedPassword = editForm.password.trim();
+                  if (trimmedPassword.length > 0) {
+                    payload.password = trimmedPassword;
+                  }
+                  const updated = await runAdminAction(async () => actions.updateUser(editingUser._id, payload), "User updated successfully");
                   if (updated) {
                     closeEditModal();
                   }
                 }}>
-                  <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} />
-                  <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" value={editForm.email} onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))} />
+                  <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Name" value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} required />
+                  <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Email" type="email" value={editForm.email} onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))} required />
                   <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" value={editForm.role} onChange={(event) => setEditForm((current) => ({ ...current, role: event.target.value }))}>
                     <option value="admin">Admin</option>
                     <option value="customer">Buyer</option>
                     <option value="farmer">Farmer</option>
                   </select>
+                  <input
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+                    type="password"
+                    placeholder="New password (leave blank to keep current)"
+                    value={editForm.password}
+                    onChange={(event) => setEditForm((current) => ({ ...current, password: event.target.value }))}
+                  />
+                  {editForm.password && editForm.password.trim() && editForm.password.trim().length < 6 ? (
+                    <p className="text-xs text-red-600">Password must be at least 6 characters</p>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
-                    <button className="rounded-xl bg-earth-600 px-4 py-2.5 font-semibold text-white transition hover:bg-earth-700 disabled:cursor-not-allowed disabled:opacity-70" type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Save changes"}</button>
+                    <button 
+                      className="rounded-xl bg-earth-600 px-4 py-2.5 font-semibold text-white transition hover:bg-earth-700 disabled:cursor-not-allowed disabled:opacity-70" 
+                      type="submit" 
+                      disabled={isSaving || (editForm.password && editForm.password.trim() && editForm.password.trim().length < 6)}
+                    >
+                      {isSaving ? "Saving..." : "Save changes"}
+                    </button>
                     <button className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-50" type="button" onClick={closeEditModal}>Cancel</button>
                   </div>
                 </form>

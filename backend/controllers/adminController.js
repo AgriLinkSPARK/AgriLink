@@ -14,8 +14,8 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ message: "Name, email, and role are required" });
     }
 
-    if (!["farmer", "customer"].includes(role)) {
-      return res.status(400).json({ message: "Role must be 'farmer' or 'customer'" });
+    if (!["admin", "farmer", "customer"].includes(role)) {
+      return res.status(400).json({ message: "Role must be 'admin', 'farmer', or 'customer'" });
     }
 
     const existingUser = await User.findOne({ email });
@@ -172,7 +172,7 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { name, email, role } = req.body;
+    const { name, email, role, password } = req.body;
 
     // Find user
     const user = await User.findById(userId);
@@ -180,14 +180,9 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Prevent updating to admin role
-    if (role && role === "admin") {
-      return res.status(400).json({ message: "Cannot update user to admin role" });
-    }
-
     // Validate role if provided
-    if (role && !["farmer", "customer"].includes(role)) {
-      return res.status(400).json({ message: "Role must be 'farmer' or 'customer'" });
+    if (role && !["admin", "farmer", "customer"].includes(role)) {
+      return res.status(400).json({ message: "Role must be 'admin', 'farmer', or 'customer'" });
     }
 
     // Check if email is taken (if updating email)
@@ -202,6 +197,14 @@ export const updateUser = async (req, res) => {
     // Update fields
     if (name) user.name = name;
     if (role) user.role = role;
+
+    // Update password if provided (admin setting new password)
+    if (password && password.trim()) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+      user.password = await bcrypt.hash(password, 10);
+    }
 
     await user.save();
 
@@ -227,7 +230,7 @@ export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Prevent deleting own account or admin accounts
+    // Prevent deleting own account
     if (userId === req.user.id) {
       return res.status(400).json({ message: "Cannot delete your own account" });
     }
@@ -235,10 +238,6 @@ export const deleteUser = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user.role === "admin") {
-      return res.status(400).json({ message: "Cannot delete admin accounts" });
     }
 
     await User.findByIdAndDelete(userId);

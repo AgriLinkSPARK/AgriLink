@@ -11,17 +11,10 @@ import { SUCCESS_MESSAGES } from "../constants/index.js";
 // GET /api/products/all  (public — any logged-in user, including customers)
 // Returns all products across all stores so customers can browse & add to cart
 // ─────────────────────────────────────────────────────────────────────────────
-export const getAllProducts = async (req, res) => {
-  try {
-    const products = await Product.find({ availability: "in-Stock" })
-      .populate("store", "name")
-      .sort({ createdAt: -1 });
-    res.json(products);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+export const getAllProducts = asyncHandler(async (req, res) => {
+  const products = await productService.getAllProducts();
+  sendSuccess(res, products, "Products retrieved successfully");
+});
 
 // Create product
 export const createProduct = asyncHandler(async (req, res) => {

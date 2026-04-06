@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders home portal screen with all three portals', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  expect(screen.getByText(/fresh harvests\. fair prices/i)).toBeInTheDocument();
+  expect(screen.getByText(/shop as buyer/i)).toBeInTheDocument();
+  expect(screen.getByText(/sell as farmer/i)).toBeInTheDocument();
+  expect(screen.getByText(/admin access/i)).toBeInTheDocument();
 });

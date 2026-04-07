@@ -14,8 +14,8 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ message: "Name, email, and role are required" });
     }
 
-    if (!["farmer", "customer"].includes(role)) {
-      return res.status(400).json({ message: "Role must be 'farmer' or 'customer'" });
+    if (!["admin", "farmer", "customer"].includes(role)) {
+      return res.status(400).json({ message: "Role must be 'admin', 'farmer', or 'customer'" });
     }
 
     const existingUser = await User.findOne({ email });
@@ -172,7 +172,7 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { name, email, role } = req.body;
+    const { name, email, role, password } = req.body;
 
     // Find user
     const user = await User.findById(userId);
@@ -180,33 +180,91 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Prevent updating to admin role
-    if (role && role === "admin") {
-      return res.status(400).json({ message: "Cannot update user to admin role" });
-    }
-
     // Validate role if provided
-    if (role && !["farmer", "customer"].includes(role)) {
-      return res.status(400).json({ message: "Role must be 'farmer' or 'customer'" });
+    if (role !== undefined && role !== null && !["admin", "farmer", "customer"].includes(role)) {
+      return res.status(400).json({ message: "Role must be 'admin', 'farmer', or 'customer'" });
     }
 
-    // Check if email is taken (if updating email)
-    if (email && email !== user.email) {
+    // Check if email is taken (if updating email and it's different)
+    if (email !== undefined && email !== null && email !== user.email) {
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res.status(400).json({ message: "Email already exists" });
       }
-      user.email = email;
     }
 
-    // Update fields
-    if (name) user.name = name;
-    if (role) user.role = role;
+    // Build update object
+    const updateData = {};
+    
+    if (name !== undefined && name !== null) updateData.name = name;
+    if (email !== undefined && email !== null) updateData.email = email;
+    if (role !== undefined && role !== null) updateData.role = role;
 
-    await user.save();
+    // Handle password update
+    if (password !== undefined && password !== null) {
+      const trimmedPassword = password.trim();
+      if (trimmedPassword.length > 0) {
+        if (trimmedPassword.length < 6) {
+          return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+        const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+        console.log(`[PASSWORD UPDATE] User ${userId}: hashing password, hash length: ${hashedPassword.length}`);
+        updateData.password = hashedPassword;
+      }
+    }
+
+    // Use findByIdAndUpdate to properly update the document
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    console.log(`[PASSWORD UPDATE] User ${userId}: updated fields: ${Object.keys(updateData).join(", ")}`);
+    console.log(`[PASSWORD UPDATE] User ${userId}: stored password hash length: ${updatedUser.password.length}`);
 
     res.json({
       message: "User updated successfully",
+      user: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+    });
+  } catch (err) {
+    console.error("Update user error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ==========================
+// Update user password only
+// ==========================
+export const updateUserPassword = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { password } = req.body;
+
+    if (typeof password !== "string") {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
+    const trimmedPassword = password.trim();
+    if (trimmedPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.password = await bcrypt.hash(trimmedPassword, 10);
+    await user.save();
+
+    return res.json({
+      message: "Password updated successfully",
       user: {
         id: user._id,
         name: user.name,
@@ -215,8 +273,8 @@ export const updateUser = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Update user password error:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -227,7 +285,7 @@ export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Prevent deleting own account or admin accounts
+    // Prevent deleting own account
     if (userId === req.user.id) {
       return res.status(400).json({ message: "Cannot delete your own account" });
     }
@@ -235,10 +293,6 @@ export const deleteUser = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user.role === "admin") {
-      return res.status(400).json({ message: "Cannot delete admin accounts" });
     }
 
     await User.findByIdAndDelete(userId);

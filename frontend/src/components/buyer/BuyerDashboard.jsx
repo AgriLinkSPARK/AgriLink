@@ -8,6 +8,7 @@ function money(value) {
 
 function BuyerDashboard({ data, user, loading, error, actions }) {
   const [activeSection, setActiveSection] = useState("products");
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState(null);
   const [messageTarget, setMessageTarget] = useState("");
   const [messageText, setMessageText] = useState("");
   const [reviewForm, setReviewForm] = useState({ productId: data.products[0]?._id || "", rating: 5, comment: "" });
@@ -48,6 +49,7 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
             { id: "products", label: "Products" },
             { id: "cart", label: "Cart" },
             { id: "orders", label: "Orders" },
+            { id: "tracking", label: "Track Delivery" },
             { id: "messages", label: "Messages & Reviews" },
             { id: "profile", label: "Profile" },
           ].map((tab) => (
@@ -122,6 +124,130 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
               </div>
             ))}
           </div>
+        </PageCard>
+      ) : null}
+
+      {activeSection === "tracking" ? (
+        <PageCard title="Track Your Deliveries" subtitle="View delivery status for your orders.">
+          {data.orders?.length === 0 ? (
+            <p className="text-slate-600">No orders to track.</p>
+          ) : (
+            <div className="grid gap-4">
+              {data.orders.map((order) => {
+                // Find logistics for this order
+                const logistics = data.logistics?.find(l => 
+                  l.orderId?._id === order._id || l.orderId === order._id
+                );
+                const status = logistics?.status || "Not Available";
+                
+                const statusColors = {
+                  "Scheduled": "bg-amber-100 text-amber-700",
+                  "Picked Up": "bg-sky-100 text-sky-700",
+                  "In Transit": "bg-indigo-100 text-indigo-700",
+                  "Out for Delivery": "bg-orange-100 text-orange-700",
+                  "Delivered": "bg-emerald-100 text-emerald-700",
+                  "Cancelled": "bg-red-100 text-red-700",
+                  "Not Available": "bg-slate-100 text-slate-600",
+                };
+                
+                const statusIcons = {
+                  "Scheduled": "📅",
+                  "Picked Up": "📦",
+                  "In Transit": "🚛",
+                  "Out for Delivery": "🛵",
+                  "Delivered": "✅",
+                  "Cancelled": "❌",
+                  "Not Available": "⏳",
+                };
+
+                return (
+                  <div key={order._id} className="rounded-xl border border-earth-200 bg-white p-4">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-mono text-sm text-slate-500">Order ID</p>
+                        <p className="font-semibold text-slate-900">{order._id}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${statusColors[status] || statusColors["Not Available"]}`}>
+                        <span>{statusIcons[status] || "⏳"}</span>
+                        {status}
+                      </span>
+                    </div>
+                    
+                    {/* Status Stepper */}
+                    <div className="relative mb-4">
+                      <div className="absolute left-0 top-3 h-0.5 w-full bg-slate-200">
+                        <div 
+                          className="h-full bg-earth-500 transition-all"
+                          style={{ 
+                            width: `${(() => {
+                              const steps = ["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"];
+                              const idx = steps.indexOf(status);
+                              if (idx === -1) return "0%";
+                              if (idx === steps.length - 1) return "100%";
+                              return `${(idx / (steps.length - 1)) * 100}%`;
+                            })()}` 
+                          }}
+                        />
+                      </div>
+                      <div className="relative flex justify-between">
+                        {["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"].map((step, idx) => {
+                          const currentIdx = ["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"].indexOf(status);
+                          const isCompleted = idx <= currentIdx && currentIdx !== -1;
+                          const isCurrent = idx === currentIdx;
+                          
+                          return (
+                            <div key={step} className="flex flex-col items-center">
+                              <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs ${
+                                isCompleted 
+                                  ? "border-earth-500 bg-earth-500 text-white" 
+                                  : "border-slate-300 bg-white text-slate-400"
+                              } ${isCurrent ? "ring-2 ring-earth-200" : ""}`}>
+                                {isCompleted ? "✓" : idx + 1}
+                              </div>
+                              <span className={`mt-1 text-xs ${isCompleted || isCurrent ? "text-slate-700" : "text-slate-400"}`}>
+                                {step}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Delivery Details */}
+                    {logistics && (
+                      <div className="mt-3 grid gap-2 rounded-lg bg-earth-50/50 p-3 text-sm">
+                        {logistics.deliveryLocation && (
+                          <div className="flex items-center gap-2">
+                            <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="text-slate-700">{logistics.deliveryLocation}</span>
+                          </div>
+                        )}
+                        {logistics.deliveryPartner && (
+                          <div className="flex items-center gap-2">
+                            <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span className="text-slate-700">Driver: {logistics.deliveryPartner}</span>
+                          </div>
+                        )}
+                        {logistics.expectedDeliveryDate && (
+                          <div className="flex items-center gap-2">
+                            <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-slate-700">Expected: {new Date(logistics.expectedDeliveryDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </PageCard>
       ) : null}
 

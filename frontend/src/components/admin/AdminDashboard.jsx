@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import PageCard from "../common/PageCard";
 import StatGrid from "../common/StatGrid";
+import LogisticsDashboard from "../logistics/LogisticsDashboard";
+import CreateLogistics from "../logistics/CreateLogistics";
+import LogisticsDetails from "../logistics/LogisticsDetails";
+import UpdateStatus from "../logistics/UpdateStatus";
+import DeleteLogisticsModal from "../logistics/DeleteLogisticsModal";
 
 function AdminDashboard({ data, user, loading, error, actions }) {
   const [activeSection, setActiveSection] = useState("users");
@@ -13,14 +18,13 @@ function AdminDashboard({ data, user, loading, error, actions }) {
   const [createdCredentials, setCreatedCredentials] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", role: "customer", password: "" });
-  const [logisticsDraft, setLogisticsDraft] = useState({
-    orderId: "",
-    deliveryPartner: "",
-    pickupLocation: "",
-    deliveryLocation: "",
-    customerPhone: "",
-    recipientPhone: "",
-  });
+
+  // Logistics state
+  const [showCreateLogistics, setShowCreateLogistics] = useState(false);
+  const [selectedLogistics, setSelectedLogistics] = useState(null);
+  const [showLogisticsDetails, setShowLogisticsDetails] = useState(false);
+  const [showUpdateStatus, setShowUpdateStatus] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const filteredUsers = useMemo(() => {
     return data.users.filter((entry) => {
@@ -310,46 +314,84 @@ function AdminDashboard({ data, user, loading, error, actions }) {
       ) : null}
 
       {activeSection === "logistics" ? (
-      <PageCard title="Logistics" subtitle="Create or update delivery records.">
-        <form className="grid gap-3" onSubmit={async (event) => {
-          event.preventDefault();
-          await runAdminAction(async () => {
-            await actions.createLogistics(logisticsDraft);
-            setLogisticsDraft({ orderId: "", deliveryPartner: "", pickupLocation: "", deliveryLocation: "", customerPhone: "", recipientPhone: "" });
-          }, "Logistics record created");
-        }}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Order ID" value={logisticsDraft.orderId} onChange={(event) => setLogisticsDraft((current) => ({ ...current, orderId: event.target.value }))} />
-            <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Delivery partner" value={logisticsDraft.deliveryPartner} onChange={(event) => setLogisticsDraft((current) => ({ ...current, deliveryPartner: event.target.value }))} />
-            <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Pickup location" value={logisticsDraft.pickupLocation} onChange={(event) => setLogisticsDraft((current) => ({ ...current, pickupLocation: event.target.value }))} />
-            <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Delivery location" value={logisticsDraft.deliveryLocation} onChange={(event) => setLogisticsDraft((current) => ({ ...current, deliveryLocation: event.target.value }))} />
-            <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Customer phone" value={logisticsDraft.customerPhone} onChange={(event) => setLogisticsDraft((current) => ({ ...current, customerPhone: event.target.value }))} />
-            <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Recipient phone" value={logisticsDraft.recipientPhone} onChange={(event) => setLogisticsDraft((current) => ({ ...current, recipientPhone: event.target.value }))} />
-          </div>
-          <button className="rounded-xl bg-earth-600 px-4 py-2.5 font-semibold text-white transition hover:bg-earth-700" type="submit">Create logistics</button>
-        </form>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.logistics.map((item) => (
-            <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4" key={item._id}>
-              <strong className="text-slate-900">{item.orderId?._id || item.orderId}</strong>
-              <p className="mt-1 text-sm text-slate-600">{item.deliveryPartner} • {item.status}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button className="rounded-md border border-earth-300 bg-white px-3 py-1.5 text-sm font-semibold text-earth-700" type="button" onClick={async () => {
-                  await runAdminAction(async () => {
-                    await actions.updateLogistics(item._id, item.status);
-                  }, "Logistics updated");
-                }}>Refresh</button>
-                <button className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700" type="button" onClick={async () => {
-                  await runAdminAction(async () => {
-                    await actions.deleteLogistics(item._id);
-                  }, "Logistics deleted");
-                }}>Delete</button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </PageCard>
+        <LogisticsDashboard
+          data={data}
+          loading={loading}
+          error={error}
+          onViewDetails={(logistics) => {
+            setSelectedLogistics(logistics);
+            setShowLogisticsDetails(true);
+          }}
+          onCreateLogistics={() => setShowCreateLogistics(true)}
+          onUpdateStatus={(logistics) => {
+            setSelectedLogistics(logistics);
+            setShowUpdateStatus(true);
+          }}
+          onDeleteLogistics={(logistics) => {
+            setSelectedLogistics(logistics);
+            setShowDeleteModal(true);
+          }}
+        />
       ) : null}
+
+      {/* Logistics Modals */}
+      <CreateLogistics
+        isOpen={showCreateLogistics}
+        onClose={() => setShowCreateLogistics(false)}
+        onSubmit={async (formData) => {
+          await runAdminAction(async () => {
+            await actions.createLogistics(formData);
+          }, "Logistics record created successfully");
+        }}
+        orders={data.orders || []}
+      />
+
+      <LogisticsDetails
+        logistics={selectedLogistics}
+        isOpen={showLogisticsDetails}
+        onClose={() => {
+          setShowLogisticsDetails(false);
+          setSelectedLogistics(null);
+        }}
+        onUpdateStatus={(logistics) => {
+          setShowLogisticsDetails(false);
+          setSelectedLogistics(logistics);
+          setShowUpdateStatus(true);
+        }}
+        onSendNotification={async (logistics) => {
+          await runAdminAction(async () => {
+            await actions.sendNotification?.(logistics._id);
+          }, "Notification sent successfully");
+        }}
+      />
+
+      <UpdateStatus
+        logistics={selectedLogistics}
+        isOpen={showUpdateStatus}
+        onClose={() => {
+          setShowUpdateStatus(false);
+          setSelectedLogistics(null);
+        }}
+        onSubmit={async (id, status, notify) => {
+          await runAdminAction(async () => {
+            await actions.updateLogistics(id, status, notify);
+          }, `Status updated to ${status.replace(/_/g, " ")}${notify ? " and customer notified" : ""}`);
+        }}
+      />
+
+      <DeleteLogisticsModal
+        logistics={selectedLogistics}
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedLogistics(null);
+        }}
+        onConfirm={async (id) => {
+          await runAdminAction(async () => {
+            await actions.deleteLogistics(id);
+          }, "Logistics record deleted successfully");
+        }}
+      />
 
       {activeSection === "products" ? (
         <PageCard title="Products" subtitle="Read-only catalog overview.">

@@ -1,18 +1,30 @@
 import Cart from "../models/Cart.js";
+import Product from "../models/Product.js";
 import { asyncHandler } from "../utils/errorHandler.js";
 import { sendSuccess } from "../utils/responseHandler.js";
 
 // Add to cart
 export const addToCart = asyncHandler(async (req, res) => {
   const { productId, quantity } = req.body;
+  
+  const product = await Product.findById(productId);
+  if (!product) {
+    return res.status(404).json({ success: false, message: "Product not found" });
+  }
+
   let cart = await Cart.findOne({ buyerId: req.user.id });
 
   if (!cart) {
-    cart = await Cart.create({ buyerId: req.user.id, items: [{ productId, quantity }] });
+    cart = await Cart.create({ buyerId: req.user.id, items: [{ productId, name: product.name, price: product.price, quantity }] });
   } else {
     const item = cart.items.find(i => i.productId.toString() === productId);
-    if (item) item.quantity += quantity;
-    else cart.items.push({ productId, quantity });
+    if (item) {
+      item.quantity += quantity;
+      item.name = product.name;
+      item.price = product.price;
+    } else {
+      cart.items.push({ productId, name: product.name, price: product.price, quantity });
+    }
     await cart.save();
   }
 
@@ -38,7 +50,19 @@ export const updateCartItem = asyncHandler(async (req, res) => {
   const item = cart.items.find(i => i.productId.toString() === req.params.productId);
   if (!item) throw new Error("Item not found");
 
+  // Retroactively patch name and price for ancient cart items
+  if (!item.name || !item.price) {
+    const product = await Product.findById(req.params.productId);
+    if (product) {
+      item.name = product.name;
+      item.price = product.price;
+    }
+  }
+
   item.quantity = quantity;
+  
+  // Ensure mongoose tracks deep array mutations
+  cart.markModified('items');
   await cart.save();
   sendSuccess(res, cart, "Cart updated successfully");
 });

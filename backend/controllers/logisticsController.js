@@ -150,6 +150,7 @@ export const updateLogistics = asyncHandler(async (req, res) => {
   }
 
   const oldStatus = logistics.status;
+  const shouldNotify = req.body.notify !== false; // default to true if not specified
   logistics.status = req.body.status || logistics.status;
 
   if (req.body.status === "Delivered") {
@@ -159,7 +160,7 @@ export const updateLogistics = asyncHandler(async (req, res) => {
   const updated = await logistics.save();
   let whatsappNotification = { attempted: false, sent: false, reason: "Status unchanged" };
 
-  if (oldStatus !== updated.status) {
+  if (oldStatus !== updated.status && shouldNotify) {
     try {
       whatsappNotification = await sendLogisticsStatusNotification(updated, oldStatus);
     } catch (error) {
@@ -170,6 +171,11 @@ export const updateLogistics = asyncHandler(async (req, res) => {
         error: error.message
       };
     }
+  } else if (oldStatus === updated.status) {
+    whatsappNotification = { attempted: false, sent: false, reason: "Status unchanged" };
+  } else if (!shouldNotify) {
+    whatsappNotification = { attempted: false, sent: false, reason: "Notification disabled by user" };
+    console.log(`ℹ️ WhatsApp skipped (Logistics STATUS) | notify=false set by user`);
   }
 
   if (whatsappNotification?.sent) {

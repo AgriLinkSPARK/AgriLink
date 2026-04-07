@@ -56,6 +56,8 @@ function CreateLogistics({ isOpen, onClose, onSubmit, orders = [], prefillOrder 
     if (!formData.orderId) newErrors.orderId = "Order ID is required";
     if (!formData.deliveryLocation) newErrors.deliveryLocation = "Delivery location is required";
     if (!formData.customerPhone) newErrors.customerPhone = "Customer phone is required";
+    if (!formData.deliveryPartner) newErrors.deliveryPartner = "Delivery partner is required";
+    if (!formData.pickupLocation) newErrors.pickupLocation = "Pickup location is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -188,14 +190,17 @@ function CreateLogistics({ isOpen, onClose, onSubmit, orders = [], prefillOrder 
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-semibold text-slate-700">Delivery Partner</label>
+              <label className="mb-1 block text-sm font-semibold text-slate-700">
+                Delivery Partner <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={formData.deliveryPartner}
                 onChange={(e) => setFormData(prev => ({ ...prev, deliveryPartner: e.target.value }))}
                 placeholder="e.g., Fast Delivery Co."
-                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+                className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:ring-2 ${errors.deliveryPartner ? "border-red-300 focus:border-red-500 focus:ring-red-200" : "border-slate-300 focus:border-earth-500 focus:ring-earth-200"}`}
               />
+              {errors.deliveryPartner && <p className="mt-1 text-xs text-red-600">{errors.deliveryPartner}</p>}
             </div>
           </div>
 
@@ -242,14 +247,17 @@ function CreateLogistics({ isOpen, onClose, onSubmit, orders = [], prefillOrder 
 
           {/* Pickup Location */}
           <div>
-            <label className="mb-1 block text-sm font-semibold text-slate-700">Pickup Location</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">
+              Pickup Location <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               value={formData.pickupLocation}
               onChange={(e) => setFormData(prev => ({ ...prev, pickupLocation: e.target.value }))}
               placeholder="Where to pick up the order"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+              className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:ring-2 ${errors.pickupLocation ? "border-red-300 focus:border-red-500 focus:ring-red-200" : "border-slate-300 focus:border-earth-500 focus:ring-earth-200"}`}
             />
+            {errors.pickupLocation && <p className="mt-1 text-xs text-red-600">{errors.pickupLocation}</p>}
           </div>
 
           {/* Notes */}

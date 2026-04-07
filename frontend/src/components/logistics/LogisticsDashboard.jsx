@@ -11,7 +11,7 @@ const STATUS_OPTIONS = [
   { value: "Cancelled", label: "Cancelled", color: "bg-red-100 text-red-700" },
 ];
 
-function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogistics, onUpdateStatus, onDeleteLogistics }) {
+function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogistics, onUpdateStatus, onDeleteLogistics, pagination, onPageChange }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });

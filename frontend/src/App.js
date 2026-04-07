@@ -96,11 +96,13 @@ function App() {
           const usersData = usersRes.users || usersRes.data || [];
           const productsData = productsRes.data || [];
           const logisticsData = logisticsRes.data || [];
+          const logisticsPagination = logisticsRes.pagination || null;
 
           setAdminState({
             users: usersData,
             products: productsData,
             logistics: logisticsData,
+            logisticsPagination,
             stores: [],
             customers: usersData.filter((entry) => entry.role === "customer").length,
             farmers: usersData.filter((entry) => entry.role === "farmer").length,
@@ -312,20 +314,40 @@ function App() {
       }));
       return deleted;
     },
+    fetchLogistics: async (page = 1, limit = 10) => {
+      const logisticsRes = await apiRequest(`/logistics?page=${page}&limit=${limit}`, { token: session.token });
+      setAdminState((current) => ({
+        ...current,
+        logistics: logisticsRes.data || logisticsRes || [],
+        logisticsPagination: logisticsRes.pagination || null,
+      }));
+    },
     createLogistics: async (payload) => {
       await apiRequest("/logistics", { method: "POST", token: session.token, body: payload });
       const logisticsRes = await apiRequest("/logistics", { token: session.token });
-      setAdminState((current) => ({ ...current, logistics: logisticsRes.data || logisticsRes || [] }));
+      setAdminState((current) => ({
+        ...current,
+        logistics: logisticsRes.data || logisticsRes || [],
+        logisticsPagination: logisticsRes.pagination || null,
+      }));
     },
-    updateLogistics: async (id, status) => {
-      await apiRequest(`/logistics/${id}`, { method: "PUT", token: session.token, body: { status } });
+    updateLogistics: async (id, status, notify) => {
+      await apiRequest(`/logistics/${id}`, { method: "PUT", token: session.token, body: { status, notify } });
       const logisticsRes = await apiRequest("/logistics", { token: session.token });
-      setAdminState((current) => ({ ...current, logistics: logisticsRes.data || logisticsRes || [] }));
+      setAdminState((current) => ({
+        ...current,
+        logistics: logisticsRes.data || logisticsRes || [],
+        logisticsPagination: logisticsRes.pagination || null,
+      }));
     },
     deleteLogistics: async (id) => {
       await apiRequest(`/logistics/${id}`, { method: "DELETE", token: session.token });
       const logisticsRes = await apiRequest("/logistics", { token: session.token });
-      setAdminState((current) => ({ ...current, logistics: logisticsRes.data || logisticsRes || [] }));
+      setAdminState((current) => ({
+        ...current,
+        logistics: logisticsRes.data || logisticsRes || [],
+        logisticsPagination: logisticsRes.pagination || null,
+      }));
     },
   };
 

@@ -279,17 +279,17 @@ function App() {
       return created;
     },
     updateUser: async (userId, payload) => {
-      const { password, ...profilePayload } = payload;
-
-      if (typeof password === "string" && password.trim().length > 0) {
-        await apiRequest(`/admin/users/${userId}/password`, {
-          method: "PUT",
-          token: session.token,
-          body: { password: password.trim() },
-        });
+      const updatePayload = { ...payload };
+      if (typeof updatePayload.password === "string") {
+        const trimmedPassword = updatePayload.password.trim();
+        if (trimmedPassword.length > 0) {
+          updatePayload.password = trimmedPassword;
+        } else {
+          delete updatePayload.password;
+        }
       }
 
-      const updated = await apiRequest(`/admin/users/${userId}`, { method: "PUT", token: session.token, body: profilePayload });
+      const updated = await apiRequest(`/admin/users/${userId}`, { method: "PUT", token: session.token, body: updatePayload });
       const usersRes = await apiRequest("/admin/users", { token: session.token });
       const users = usersRes.users || usersRes.data || [];
       setAdminState((current) => ({

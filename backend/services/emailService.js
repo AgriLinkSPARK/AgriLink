@@ -13,6 +13,10 @@ class EmailService {
    * Send email with error handling (best-effort)
    */
   async sendEmailSafely(emailFunction, ...args) {
+    if (process.env.NODE_ENV === "test") {
+      return { success: true, skipped: true };
+    }
+
     try {
       await emailFunction(...args);
       return { success: true };

@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
+    "test:unit": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest tests/unit --runInBand",
+    "test:integration": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest tests/integration --runInBand",
+    "test:performance": "artillery run tests/performance/auth-load.yml",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
@@ -33,6 +36,11 @@
     "twilio": "^5.12.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "artillery": "^2.0.22",
+    "cross-env": "^7.0.3",
+    "jest": "^30.2.0",
+    "mongodb-memory-server": "^10.2.3",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.1.4"
   }
 }

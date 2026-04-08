@@ -1,0 +1,35 @@
+config:
+  target: "http://localhost:5000"
+  processor: "./auth-load.processor.cjs"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: Warm-up
+    - duration: 60
+      arrivalRate: 15
+      name: Sustained load
+    - duration: 30
+      arrivalRate: 30
+      name: Stress burst
+  plugins:
+    ensure:
+      thresholds:
+        - http.response_time.p95: 1000
+        - http.response_time.p99: 2000
+        - http.codes.200: 1
+
+scenarios:
+  - name: Register and login customer flow
+    flow:
+      - function: generateUser
+      - post:
+          url: "/api/auth/register/customer"
+          json:
+            name: "{{ name }}"
+            email: "{{ email }}"
+            password: "{{ password }}"
+      - post:
+          url: "/api/auth/login/customer"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"

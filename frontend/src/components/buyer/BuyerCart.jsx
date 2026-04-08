@@ -11,9 +11,18 @@ function BuyerCart({ cartItems, cartTotal, actions, handleCheckout, isProcessing
         <div className="grid gap-3">
           {cartItems.map((item) => (
             <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-earth-200 bg-earth-50/50 p-3 md:flex-row md:items-center" key={item.productId._id || item.productId}>
-              <div>
-                <strong className="text-slate-900">{item.productId.name || "Product"}</strong>
-                <p className="text-sm text-slate-600">{money(item.productId.price || 0)}</p>
+              <div className="flex items-center gap-4">
+                {item.productId.mainImage && (
+                  <img 
+                    src={item.productId.mainImage} 
+                    alt={item.productId.name} 
+                    className="h-16 w-16 rounded-lg object-cover"
+                  />
+                )}
+                <div>
+                  <strong className="text-slate-900">{item.productId.name || "Product"}</strong>
+                  <p className="text-sm text-slate-600">{money(item.productId.price || 0)}</p>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700" onClick={() => actions.updateCart(item.productId._id || item.productId, Math.max(1, item.quantity - 1))}>-</button>

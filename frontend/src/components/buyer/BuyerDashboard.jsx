@@ -110,6 +110,15 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.products.map((product) => (
             <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4" key={product._id}>
+              {product.mainImage && (
+                <div className="mb-3 overflow-hidden rounded-xl bg-gray-200 aspect-video">
+                  <img 
+                    src={product.mainImage} 
+                    alt={product.name} 
+                    className="h-full w-full object-cover transition duration-300 hover:scale-105"
+                  />
+                </div>
+              )}
               <strong className="text-base font-bold text-slate-900">{product.name}</strong>
               <p className="mt-1 text-sm text-slate-600">{product.category} • {money(product.price)} • {product.quantity} {product.unit}</p>
               <button 

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import PageCard from "../common/PageCard";
 import StatGrid from "../common/StatGrid";
+import BuyerCart from "./BuyerCart";
+import BuyerOrders from "./BuyerOrders";
 
 function money(value) {
   return `LKR ${Number(value || 0).toFixed(2)}`;
@@ -16,6 +18,41 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
     email: user?.email || "",
     phone: user?.phone || "",
   });
+
+  const [isProcessingCart, setIsProcessingCart] = useState(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  const handleAddToCart = async (productId) => {
+    setIsProcessingCart(productId);
+    try {
+      await actions.addToCart(productId);
+      setActiveSection("cart");
+    } finally {
+      setIsProcessingCart(false);
+    }
+  };
+
+  const handleCheckout = async () => {
+    setIsProcessingCheckout(true);
+    try {
+      await actions.checkout();
+      setActiveSection("orders");
+    } finally {
+      setIsProcessingCheckout(false);
+    }
+  };
+
+  const handlePay = async (orderId) => {
+    setIsProcessingPayment(orderId);
+    try {
+      // Simulate real-world stripe redirect or modal processing time
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await actions.pay(orderId);
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
 
   const cartItems = data.cart?.items || [];
   const cartTotal = data.cartTotal || 0;
@@ -73,9 +110,25 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.products.map((product) => (
             <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4" key={product._id}>
+              {product.mainImage && (
+                <div className="mb-3 overflow-hidden rounded-xl bg-gray-200 aspect-video">
+                  <img 
+                    src={product.mainImage} 
+                    alt={product.name} 
+                    className="h-full w-full object-cover transition duration-300 hover:scale-105"
+                  />
+                </div>
+              )}
               <strong className="text-base font-bold text-slate-900">{product.name}</strong>
               <p className="mt-1 text-sm text-slate-600">{product.category} • {money(product.price)} • {product.quantity} {product.unit}</p>
-              <button type="button" className="mt-3 rounded-lg border border-earth-300 bg-white px-3 py-1.5 text-sm font-semibold text-earth-700 transition hover:bg-earth-100" onClick={() => actions.addToCart(product._id)}>Add to cart</button>
+              <button 
+                type="button" 
+                className="mt-3 rounded-lg border border-earth-300 bg-white px-3 py-1.5 text-sm font-semibold text-earth-700 transition hover:bg-earth-100 disabled:opacity-50" 
+                onClick={() => handleAddToCart(product._id)}
+                disabled={isProcessingCart === product._id}
+              >
+                {isProcessingCart === product._id ? "Adding..." : "Add to cart"}
+              </button>
             </article>
           ))}
         </div>
@@ -83,46 +136,22 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
       ) : null}
 
       {activeSection === "cart" ? (
-        <PageCard title="Cart" subtitle="Update quantities or checkout.">
-          {cartItems.length ? (
-            <div className="grid gap-3">
-              {cartItems.map((item) => (
-                <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-earth-200 bg-earth-50/50 p-3 md:flex-row md:items-center" key={item.productId._id || item.productId}>
-                  <div>
-                    <strong className="text-slate-900">{item.productId.name || "Product"}</strong>
-                    <p className="text-sm text-slate-600">{money(item.productId.price || 0)}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700" onClick={() => actions.updateCart(item.productId._id || item.productId, Math.max(1, item.quantity - 1))}>-</button>
-                    <span className="min-w-5 text-center font-semibold text-slate-700">{item.quantity}</span>
-                    <button type="button" className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700" onClick={() => actions.updateCart(item.productId._id || item.productId, item.quantity + 1)}>+</button>
-                    <button type="button" className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-sm font-semibold text-red-700" onClick={() => actions.removeFromCart(item.productId._id || item.productId)}>Remove</button>
-                  </div>
-                </div>
-              ))}
-              <button className="rounded-xl bg-earth-600 px-4 py-2.5 font-semibold text-white transition hover:bg-earth-700" type="button" onClick={actions.checkout}>Checkout</button>
-            </div>
-          ) : <p className="text-slate-600">Your cart is empty.</p>}
-        </PageCard>
+        <BuyerCart 
+          cartItems={cartItems} 
+          cartTotal={cartTotal} 
+          actions={actions} 
+          handleCheckout={handleCheckout} 
+          isProcessingCheckout={isProcessingCheckout} 
+        />
       ) : null}
 
       {activeSection === "orders" ? (
-        <PageCard title="Orders" subtitle="Check payment and cancel pending orders.">
-          <div className="grid gap-3">
-            {data.orders.map((order) => (
-              <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-earth-200 bg-earth-50/50 p-3 md:flex-row md:items-center" key={order._id}>
-                <div>
-                  <strong className="text-slate-900">{order._id}</strong>
-                  <p className="text-sm text-slate-600">{order.status} • {order.paymentStatus}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {order.paymentStatus !== "Paid" ? <button className="rounded-md border border-earth-300 bg-white px-3 py-1.5 text-sm font-semibold text-earth-700" type="button" onClick={() => actions.pay(order._id)}>Pay</button> : null}
-                  {order.status === "Pending" ? <button className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700" type="button" onClick={() => actions.cancel(order._id)}>Cancel</button> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </PageCard>
+        <BuyerOrders 
+          orders={data.orders} 
+          actions={actions} 
+          handlePay={handlePay} 
+          isProcessingPayment={isProcessingPayment} 
+        />
       ) : null}
 
       {activeSection === "messages" ? (

@@ -4,13 +4,20 @@ import Cart from "../models/Cart.js";
 // Checkout → create order from cart
 export const checkout = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ buyerId: req.user.id });
+    const cart = await Cart.findOne({ buyerId: req.user.id }).populate("items.productId");
     if (!cart || cart.items.length === 0) return res.status(400).json({ message: "Cart is empty" });
 
-    // Simulated total price
-    const totalPrice = cart.items.reduce((sum, item) => sum + item.quantity * 10, 0);
+    // Build items with names and calculate actual real price
+    const orderItems = cart.items.map(item => ({
+      productId: item.productId._id,
+      name: item.productId.name || "Unknown Product",
+      price: item.productId.price || 0,
+      quantity: item.quantity
+    }));
 
-    const order = await Order.create({ buyerId: req.user.id, items: cart.items, totalPrice });
+    const totalPrice = orderItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+
+    const order = await Order.create({ buyerId: req.user.id, items: orderItems, totalPrice });
 
     // Clear cart
     cart.items = [];

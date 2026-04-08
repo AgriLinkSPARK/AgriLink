@@ -283,8 +283,69 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
               </table>
             </div>
             {filteredLogistics.length > 0 && (
-              <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-                Showing {filteredLogistics.length} of {data.logistics?.length || 0} deliveries
+              <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="text-xs text-slate-600">
+                    {pagination ? (
+                      <>
+                        Showing {((pagination.currentPage || 1) - 1) * (pagination.recordsPerPage || 10) + 1} - {Math.min((pagination.currentPage || 1) * (pagination.recordsPerPage || 10), pagination.totalRecords || 0)} of {pagination.totalRecords || 0} deliveries
+                      </>
+                    ) : (
+                      <>Showing {filteredLogistics.length} of {data.logistics?.length || 0} deliveries</>
+                    )}
+                  </div>
+                  
+                  {/* Pagination Controls */}
+                  {pagination && pagination.totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onPageChange?.(pagination.currentPage - 1)}
+                        disabled={!pagination.hasPrevPage}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (pagination.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (pagination.currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                            pageNum = pagination.totalPages - 4 + i;
+                          } else {
+                            pageNum = pagination.currentPage - 2 + i;
+                          }
+                          
+                          const isActive = pageNum === pagination.currentPage;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => onPageChange?.(pageNum)}
+                              className={`min-w-[2rem] rounded-lg px-2 py-1.5 text-sm font-semibold transition ${
+                                isActive
+                                  ? "bg-earth-600 text-white"
+                                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => onPageChange?.(pagination.currentPage + 1)}
+                        disabled={!pagination.hasNextPage}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

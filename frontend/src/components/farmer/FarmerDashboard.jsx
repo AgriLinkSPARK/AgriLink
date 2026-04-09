@@ -157,7 +157,7 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
 
       {activeSection === "messages" ? (
         <PageCard title="Messages" subtitle="Inbox - Messages from buyers.">
-          <MessagesInbox actions={actions} />
+          <MessagesInbox actions={actions} currentUser={user} />
         </PageCard>
       ) : null}
 
@@ -183,7 +183,7 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
   );
 }
 
-function MessagesInbox({ actions }) {
+function MessagesInbox({ actions, currentUser }) {
   const [inbox, setInbox] = useState([]);
   const [selectedBuyer, setSelectedBuyer] = useState(null);
   const [inboxLoading, setInboxLoading] = useState(false);
@@ -198,19 +198,28 @@ function MessagesInbox({ actions }) {
     setInboxError(null);
     try {
       const data = await actions.fetchInbox();
-      // Group messages by sender
       const grouped = (data || []).reduce((acc, msg) => {
+        const myId = currentUser?._id;
         const senderId = msg.senderId?._id || msg.senderId;
-        if (!acc[senderId]) {
-          acc[senderId] = {
-            sender: msg.senderId,
+        const receiverId = msg.receiverId?._id || msg.receiverId;
+
+        // Group by the "other" person
+        const isMeSender = senderId === myId;
+        const otherPerson = isMeSender ? msg.receiverId : msg.senderId;
+        const otherId = otherPerson?._id || otherPerson;
+
+        if (!otherId) return acc;
+
+        if (!acc[otherId]) {
+          acc[otherId] = {
+            otherPersonInfo: otherPerson,
             messages: [],
             lastMessage: msg,
           };
         }
-        acc[senderId].messages.push(msg);
-        if (new Date(msg.createdAt) > new Date(acc[senderId].lastMessage.createdAt)) {
-          acc[senderId].lastMessage = msg;
+        acc[otherId].messages.push(msg);
+        if (new Date(msg.createdAt) > new Date(acc[otherId].lastMessage.createdAt)) {
+          acc[otherId].lastMessage = msg;
         }
         return acc;
       }, {});
@@ -223,7 +232,7 @@ function MessagesInbox({ actions }) {
   };
 
   const selectedConversation = selectedBuyer
-    ? inbox.find((conv) => (conv.sender?._id || conv.sender) === selectedBuyer)
+    ? inbox.find((conv) => (conv.otherPersonInfo?._id || conv.otherPersonInfo) === selectedBuyer)
     : null;
 
   return (
@@ -256,20 +265,20 @@ function MessagesInbox({ actions }) {
             </div>
           ) : (
             inbox.map((conversation) => {
-              const senderId = conversation.sender?._id || conversation.sender;
-              const senderName = conversation.sender?.name || "Unknown Buyer";
-              const isSelected = selectedBuyer === senderId;
+              const otherId = conversation.otherPersonInfo?._id || conversation.otherPersonInfo;
+              const otherName = conversation.otherPersonInfo?.name || "Unknown Buyer";
+              const isSelected = selectedBuyer === otherId;
               const lastMsg = conversation.lastMessage;
 
               return (
                 <button
-                  key={senderId}
-                  onClick={() => setSelectedBuyer(senderId)}
+                  key={otherId}
+                  onClick={() => setSelectedBuyer(otherId)}
                   className={`w-full border-b border-slate-100 p-3 text-left transition hover:bg-earth-50/50 ${
                     isSelected ? "bg-earth-50 border-earth-200" : ""
                   }`}
                 >
-                  <p className="font-semibold text-slate-800">{senderName}</p>
+                  <p className="font-semibold text-slate-800">{otherName}</p>
                   <p className="truncate text-sm text-slate-500">{lastMsg?.messageText}</p>
                   <p className="mt-1 text-xs text-slate-400">
                     {lastMsg?.createdAt ? new Date(lastMsg.createdAt).toLocaleDateString() : ""}
@@ -287,7 +296,7 @@ function MessagesInbox({ actions }) {
           <div className="flex h-96 flex-col">
             <div className="border-b border-earth-200 p-3">
               <h3 className="font-semibold text-slate-800">
-                {selectedConversation.sender?.name || "Unknown Buyer"}
+                {selectedConversation.otherPersonInfo?.name || "Unknown Buyer"}
               </h3>
               <p className="text-xs text-slate-500">
                 {selectedConversation.messages.length} message{selectedConversation.messages.length !== 1 ? "s" : ""}
@@ -300,8 +309,8 @@ function MessagesInbox({ actions }) {
                   <div
                     key={msg._id}
                     className={`max-w-[80%] rounded-xl p-3 ${
-                      msg.senderId?._id === selectedBuyer || msg.senderId === selectedBuyer
-                        ? "ml-auto bg-earth-100 text-slate-800"
+                      (msg.senderId?._id || msg.senderId) === currentUser?._id
+                        ? "ml-auto bg-earth-600 text-white"
                         : "bg-slate-100 text-slate-800"
                     }`}
                   >

@@ -2,6 +2,81 @@ import { useMemo, useState } from "react";
 import PageCard from "../common/PageCard";
 import StatGrid from "../common/StatGrid";
 
+function StarRating({ value, onChange }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(star)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "2px",
+            fontSize: "28px",
+            lineHeight: 1,
+            color: star <= (hovered || value) ? "#f59e0b" : "#d1d5db",
+            transform: star <= (hovered || value) ? "scale(1.15)" : "scale(1)",
+            transition: "color 0.15s, transform 0.15s",
+            filter: star <= (hovered || value) ? "drop-shadow(0 0 4px #f59e0b88)" : "none",
+          }}
+          aria-label={`${star} star${star !== 1 ? "s" : ""}`}
+        >
+          ★
+        </button>
+      ))}
+      <span style={{ marginLeft: "6px", fontSize: "13px", color: "#64748b", fontWeight: 600 }}>
+        {hovered || value} / 5
+      </span>
+    </div>
+  );
+}
+
+function Toast({ message, type, visible }) {
+  const icons = { success: "✅", info: "✉️" };
+  const colors = {
+    success: { bg: "#f0fdf4", border: "#86efac", text: "#166534" },
+    info:    { bg: "#eff6ff", border: "#93c5fd", text: "#1e40af" },
+  };
+  const c = colors[type] || colors.success;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: "28px",
+        right: "28px",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        background: c.bg,
+        border: `1.5px solid ${c.border}`,
+        color: c.text,
+        borderRadius: "14px",
+        padding: "14px 20px",
+        fontWeight: 600,
+        fontSize: "15px",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.13)",
+        minWidth: "220px",
+        pointerEvents: "none",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(18px)",
+        transition: "opacity 0.32s ease, transform 0.32s ease",
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      <span style={{ fontSize: "20px" }}>{icons[type] || "✅"}</span>
+      {message}
+    </div>
+  );
+}
+
 function money(value) {
   return `LKR ${Number(value || 0).toFixed(2)}`;
 }
@@ -256,6 +331,12 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
     email: user?.email || "",
     phone: user?.phone || "",
   });
+  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ visible: true, message, type });
+    setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3000);
+  };
 
   const cartItems = data.cart?.items || [];
   const cartTotal = data.cartTotal || 0;
@@ -271,6 +352,7 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
 
   return (
     <div className="mx-auto max-w-6xl px-5 pb-14 pt-8">
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} />
       <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-earth-200 bg-white/85 p-6 shadow-soft backdrop-blur-sm md:flex-row md:items-start">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Buyer workspace</p>
@@ -373,7 +455,7 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
       {activeSection === "messages" ? (
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
         <PageCard title="Message support" subtitle="Send a message to a farmer.">
-          <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); actions.sendMessage({ senderId: user._id, receiverId: messageTarget, messageText }); setMessageText(""); }}>
+          <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); actions.sendMessage({ senderId: user._id, receiverId: messageTarget, messageText }); setMessageText(""); showToast("Message sent! ✉️", "info"); }}>
             <label className="grid gap-1">
               <span className="text-sm font-semibold text-slate-700">Select Farmer</span>
               <select
@@ -397,13 +479,16 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
         </PageCard>
 
         <PageCard title="Write a review" subtitle="Save a product review to MongoDB.">
-          <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); actions.createReview({ productId: reviewForm.productId, buyerId: user._id, rating: reviewForm.rating, comment: reviewForm.comment }); setReviewForm({ productId: selectedProduct?._id || "", rating: 5, comment: "" }); }}>
-            <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" value={reviewForm.productId} onChange={(event) => setReviewForm((current) => ({ ...current, productId: event.target.value }))}>
-              {data.products.map((product) => <option key={product._id} value={product._id}>{product.name}</option>)}
-            </select>
-            <select className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" value={reviewForm.rating} onChange={(event) => setReviewForm((current) => ({ ...current, rating: Number(event.target.value) }))}>
-              {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} stars</option>)}
-            </select>
+          <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); actions.createReview({ productId: reviewForm.productId, buyerId: user._id, rating: reviewForm.rating, comment: reviewForm.comment }); setReviewForm({ productId: selectedProduct?._id || "", rating: 5, comment: "" }); showToast("Review submitted! ⭐", "success"); }}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <select className="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" value={reviewForm.productId} onChange={(event) => setReviewForm((current) => ({ ...current, productId: event.target.value }))}>
+                {data.products.map((product) => <option key={product._id} value={product._id}>{product.name}</option>)}
+              </select>
+              <StarRating
+                value={reviewForm.rating}
+                onChange={(rating) => setReviewForm((current) => ({ ...current, rating }))}
+              />
+            </div>
             <textarea className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Comment" value={reviewForm.comment} onChange={(event) => setReviewForm((current) => ({ ...current, comment: event.target.value }))} rows={3} />
             <button className="rounded-xl bg-earth-600 px-4 py-2.5 font-semibold text-white transition hover:bg-earth-700" type="submit">Submit review</button>
           </form>

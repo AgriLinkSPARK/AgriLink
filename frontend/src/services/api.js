@@ -1,9 +1,8 @@
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api";
 
 export async function apiRequest(path, { method = "GET", body, token } = {}) {
-  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const headers = {
-    ...(isFormData ? {} : { "Content-Type": "application/json" }),
+    "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
@@ -12,7 +11,7 @@ export async function apiRequest(path, { method = "GET", body, token } = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
-    body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   });
 
   const data = await response.json().catch(() => ({}));

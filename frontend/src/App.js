@@ -255,6 +255,10 @@ function App() {
       const profile = await apiRequest("/customer/profile", { token: session.token });
       setBuyerState((current) => ({ ...current, user: profile.user }));
     },
+    trackDelivery: async (orderId) => {
+      const response = await apiRequest(`/logistics/order/${orderId}`, { token: session.token });
+      return response.data || response;
+    },
   };
 
   const farmerActions = {
@@ -263,6 +267,10 @@ function App() {
       await apiRequest("/store", { method: "PUT", token: session.token, body: payload });
       const storeRes = await apiRequest("/store", { token: session.token }).catch(() => ({ data: {} }));
       setFarmerState((current) => ({ ...current, store: storeRes.data || storeRes }));
+    },
+    fetchInbox: async () => {
+      const response = await apiRequest("/messages/inbox", { token: session.token });
+      return response.data || response;
     },
   };
 

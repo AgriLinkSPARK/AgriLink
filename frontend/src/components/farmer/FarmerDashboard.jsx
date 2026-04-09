@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageCard from "../common/PageCard";
 import StatGrid from "../common/StatGrid";
 
@@ -14,6 +14,12 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
     location: data.store?.location || "",
     phone: data.store?.phone || "",
   });
+
+  // Messages/Inbox state
+  const [inbox, setInbox] = useState([]);
+  const [selectedBuyer, setSelectedBuyer] = useState(null);
+  const [inboxLoading, setInboxLoading] = useState(false);
+  const [inboxError, setInboxError] = useState(null);
 
   const stats = useMemo(() => [
     { label: "Store", value: data.store?.name || "My Store", note: "Farm marketplace" },
@@ -41,6 +47,7 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
             { id: "store", label: "My Store" },
             { id: "products", label: "Products" },
             { id: "orders", label: "Orders" },
+            { id: "messages", label: "Messages" },
             { id: "profile", label: "Profile" },
           ].map((tab) => (
             <button
@@ -148,6 +155,12 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
         </PageCard>
       ) : null}
 
+      {activeSection === "messages" ? (
+        <PageCard title="Messages" subtitle="Inbox - Messages from buyers.">
+          <MessagesInbox actions={actions} />
+        </PageCard>
+      ) : null}
+
       {activeSection === "profile" ? (
         <PageCard title="Farmer Profile" subtitle="Your marketplace account details.">
           <div className="grid max-w-lg gap-3">
@@ -166,6 +179,151 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
           </div>
         </PageCard>
       ) : null}
+    </div>
+  );
+}
+
+function MessagesInbox({ actions }) {
+  const [inbox, setInbox] = useState([]);
+  const [selectedBuyer, setSelectedBuyer] = useState(null);
+  const [inboxLoading, setInboxLoading] = useState(false);
+  const [inboxError, setInboxError] = useState(null);
+
+  useEffect(() => {
+    loadInbox();
+  }, []);
+
+  const loadInbox = async () => {
+    setInboxLoading(true);
+    setInboxError(null);
+    try {
+      const data = await actions.fetchInbox();
+      // Group messages by sender
+      const grouped = (data || []).reduce((acc, msg) => {
+        const senderId = msg.senderId?._id || msg.senderId;
+        if (!acc[senderId]) {
+          acc[senderId] = {
+            sender: msg.senderId,
+            messages: [],
+            lastMessage: msg,
+          };
+        }
+        acc[senderId].messages.push(msg);
+        if (new Date(msg.createdAt) > new Date(acc[senderId].lastMessage.createdAt)) {
+          acc[senderId].lastMessage = msg;
+        }
+        return acc;
+      }, {});
+      setInbox(Object.values(grouped));
+    } catch (err) {
+      setInboxError(err.message || "Failed to load messages");
+    } finally {
+      setInboxLoading(false);
+    }
+  };
+
+  const selectedConversation = selectedBuyer
+    ? inbox.find((conv) => (conv.sender?._id || conv.sender) === selectedBuyer)
+    : null;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      {/* Buyer List */}
+      <div className="rounded-xl border border-earth-200 bg-white lg:col-span-1">
+        <div className="border-b border-earth-200 p-3">
+          <h3 className="font-semibold text-slate-800">Buyers</h3>
+          <p className="text-xs text-slate-500">Select a buyer to view messages</p>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          {inboxLoading ? (
+            <div className="p-4 text-center">
+              <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-earth-300 border-t-earth-600"></div>
+              <p className="text-sm text-slate-500">Loading...</p>
+            </div>
+          ) : inboxError ? (
+            <div className="p-4 text-center text-red-600">
+              <p className="text-sm">{inboxError}</p>
+              <button
+                onClick={loadInbox}
+                className="mt-2 text-sm text-earth-600 hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : inbox.length === 0 ? (
+            <div className="p-4 text-center text-slate-500">
+              <p className="text-sm">No messages yet</p>
+            </div>
+          ) : (
+            inbox.map((conversation) => {
+              const senderId = conversation.sender?._id || conversation.sender;
+              const senderName = conversation.sender?.name || "Unknown Buyer";
+              const isSelected = selectedBuyer === senderId;
+              const lastMsg = conversation.lastMessage;
+
+              return (
+                <button
+                  key={senderId}
+                  onClick={() => setSelectedBuyer(senderId)}
+                  className={`w-full border-b border-slate-100 p-3 text-left transition hover:bg-earth-50/50 ${
+                    isSelected ? "bg-earth-50 border-earth-200" : ""
+                  }`}
+                >
+                  <p className="font-semibold text-slate-800">{senderName}</p>
+                  <p className="truncate text-sm text-slate-500">{lastMsg?.messageText}</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {lastMsg?.createdAt ? new Date(lastMsg.createdAt).toLocaleDateString() : ""}
+                  </p>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Message Thread */}
+      <div className="rounded-xl border border-earth-200 bg-white lg:col-span-2">
+        {selectedConversation ? (
+          <div className="flex h-96 flex-col">
+            <div className="border-b border-earth-200 p-3">
+              <h3 className="font-semibold text-slate-800">
+                {selectedConversation.sender?.name || "Unknown Buyer"}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {selectedConversation.messages.length} message{selectedConversation.messages.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {[...selectedConversation.messages]
+                .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+                .map((msg) => (
+                  <div
+                    key={msg._id}
+                    className={`max-w-[80%] rounded-xl p-3 ${
+                      msg.senderId?._id === selectedBuyer || msg.senderId === selectedBuyer
+                        ? "ml-auto bg-earth-100 text-slate-800"
+                        : "bg-slate-100 text-slate-800"
+                    }`}
+                  >
+                    <p className="text-sm">{msg.messageText}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {new Date(msg.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex h-96 items-center justify-center text-slate-500">
+            <div className="text-center">
+              <svg className="mx-auto mb-2 h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              <p className="text-sm">Select a buyer to view messages</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

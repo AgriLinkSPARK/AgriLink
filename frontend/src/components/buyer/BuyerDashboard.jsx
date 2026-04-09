@@ -6,6 +6,245 @@ function money(value) {
   return `LKR ${Number(value || 0).toFixed(2)}`;
 }
 
+function TrackDeliverySection({ data, actions }) {
+  const [orderId, setOrderId] = useState("");
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackResult, setTrackResult] = useState(null);
+  const [trackError, setTrackError] = useState(null);
+
+  const handleTrack = async (e) => {
+    e.preventDefault();
+    if (!orderId.trim()) return;
+
+    setTrackLoading(true);
+    setTrackError(null);
+    setTrackResult(null);
+
+    try {
+      console.log("[Track] Starting tracking for order:", orderId.trim());
+      const result = await actions.trackDelivery(orderId.trim());
+      console.log("[Track] Result received:", result);
+      setTrackResult(result);
+    } catch (err) {
+      console.error("[Track] Error:", err);
+      setTrackError(err.message || "Invalid Order ID. Please try again.");
+    } finally {
+      setTrackLoading(false);
+    }
+  };
+
+  const statusColors = {
+    "Scheduled": "bg-amber-100 text-amber-700",
+    "Picked Up": "bg-sky-100 text-sky-700",
+    "In Transit": "bg-indigo-100 text-indigo-700",
+    "Out for Delivery": "bg-orange-100 text-orange-700",
+    "Delivered": "bg-emerald-100 text-emerald-700",
+    "Cancelled": "bg-red-100 text-red-700",
+    "Not Available": "bg-slate-100 text-slate-600",
+  };
+
+  const statusIcons = {
+    "Scheduled": "📅",
+    "Picked Up": "📦",
+    "In Transit": "🚛",
+    "Out for Delivery": "🛵",
+    "Delivered": "✅",
+    "Cancelled": "❌",
+    "Not Available": "⏳",
+  };
+
+  const getStatusStep = (status) => {
+    const steps = ["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"];
+    return steps.indexOf(status);
+  };
+
+  return (
+    <PageCard title="Track Your Delivery" subtitle="Enter your Order ID to check delivery status.">
+      {/* Search Form */}
+      <form onSubmit={handleTrack} className="mb-6 rounded-xl border border-earth-200 bg-earth-50/50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex-1">
+            <label className="mb-1 block text-xs font-semibold text-slate-600">Order ID</label>
+            <input
+              type="text"
+              placeholder="Enter your Order ID"
+              value={orderId}
+              onChange={(e) => setOrderId(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+              disabled={trackLoading}
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={trackLoading || !orderId.trim()}
+              className="w-full rounded-xl bg-earth-600 px-6 py-2.5 font-semibold text-white transition hover:bg-earth-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              {trackLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Tracking...
+                </span>
+              ) : (
+                "Track Delivery"
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* Loading State */}
+      {trackLoading && (
+        <div className="py-8 text-center">
+          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-earth-300 border-t-earth-600"></div>
+          <p className="text-slate-600">Tracking your order...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {trackError && !trackLoading && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium">{trackError}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Result Display */}
+      {trackResult && !trackLoading && (
+        <div className="rounded-xl border border-earth-200 bg-white p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-mono text-sm text-slate-500">Order ID</p>
+              <p className="font-semibold text-slate-900">{trackResult.orderId?._id || trackResult.orderId || orderId}</p>
+            </div>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${statusColors[trackResult.status] || statusColors["Not Available"]}`}>
+              <span>{statusIcons[trackResult.status] || ""}</span>
+              {trackResult.status || "Not Available"}
+            </span>
+          </div>
+
+          {/* Status Stepper */}
+          <div className="relative mb-6">
+            <div className="absolute left-0 top-3 h-0.5 w-full bg-slate-200">
+              <div
+                className="h-full bg-earth-500 transition-all"
+                style={{
+                  width: `${(() => {
+                    const idx = getStatusStep(trackResult.status);
+                    if (idx === -1) return "0%";
+                    if (idx === 4) return "100%";
+                    return `${(idx / 4) * 100}%`;
+                  })()}`
+                }}
+              />
+            </div>
+            <div className="relative flex justify-between">
+              {["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"].map((step, idx) => {
+                const currentIdx = getStatusStep(trackResult.status);
+                const isCompleted = idx <= currentIdx && currentIdx !== -1;
+                const isCurrent = idx === currentIdx;
+
+                return (
+                  <div key={step} className="flex flex-col items-center">
+                    <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs ${
+                      isCompleted
+                        ? "border-earth-500 bg-earth-500 text-white"
+                        : "border-slate-300 bg-white text-slate-400"
+                    } ${isCurrent ? "ring-2 ring-earth-200" : ""}`}>
+                      {isCompleted ? "✓" : idx + 1}
+                    </div>
+                    <span className={`mt-1 text-xs ${isCompleted || isCurrent ? "text-slate-700" : "text-slate-400"}`}>
+                      {step}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Delivery Details */}
+          <div className="grid gap-2 rounded-lg bg-earth-50/50 p-3 text-sm">
+            {trackResult.deliveryLocation && (
+              <div className="flex items-center gap-2">
+                <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-slate-700">{trackResult.deliveryLocation}</span>
+              </div>
+            )}
+            {trackResult.pickupLocation && (
+              <div className="flex items-center gap-2">
+                <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <span className="text-slate-700">Pickup: {trackResult.pickupLocation}</span>
+              </div>
+            )}
+            {trackResult.deliveryPartner && (
+              <div className="flex items-center gap-2">
+                <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-slate-700">Driver: {trackResult.deliveryPartner}</span>
+              </div>
+            )}
+            {trackResult.expectedDeliveryDate && (
+              <div className="flex items-center gap-2">
+                <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-slate-700">Expected: {new Date(trackResult.expectedDeliveryDate).toLocaleDateString()}</span>
+              </div>
+            )}
+            {trackResult.actualDeliveryDate && (
+              <div className="flex items-center gap-2">
+                <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-emerald-700 font-medium">Delivered on: {new Date(trackResult.actualDeliveryDate).toLocaleDateString()}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Quick History - Show user's recent orders */}
+      {data.orders?.length > 0 && (
+        <div className="mt-6">
+          <h4 className="mb-3 text-sm font-semibold text-slate-700">Your Recent Orders</h4>
+          <div className="grid gap-2">
+            {data.orders.slice(0, 5).map((order) => (
+              <button
+                key={order._id}
+                onClick={() => {
+                  setOrderId(order._id);
+                  setTrackResult(null);
+                  setTrackError(null);
+                }}
+                className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-earth-300 hover:bg-earth-50/50"
+              >
+                <div>
+                  <p className="font-mono text-sm font-medium text-slate-900">{order._id}</p>
+                  <p className="text-xs text-slate-500">{order.paymentStatus} • {money(order.totalAmount)}</p>
+                </div>
+                <span className="text-xs text-earth-600 font-medium">Click to track</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </PageCard>
+  );
+}
+
 function BuyerDashboard({ data, user, loading, error, actions }) {
   const [activeSection, setActiveSection] = useState("products");
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState(null);
@@ -128,134 +367,30 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
       ) : null}
 
       {activeSection === "tracking" ? (
-        <PageCard title="Track Your Deliveries" subtitle="View delivery status for your orders.">
-          {data.orders?.length === 0 ? (
-            <p className="text-slate-600">No orders to track.</p>
-          ) : (
-            <div className="grid gap-4">
-              {data.orders.map((order) => {
-                // Find logistics for this order
-                const logistics = data.logistics?.find(l => 
-                  l.orderId?._id === order._id || l.orderId === order._id
-                );
-                const status = logistics?.status || "Not Available";
-                
-                const statusColors = {
-                  "Scheduled": "bg-amber-100 text-amber-700",
-                  "Picked Up": "bg-sky-100 text-sky-700",
-                  "In Transit": "bg-indigo-100 text-indigo-700",
-                  "Out for Delivery": "bg-orange-100 text-orange-700",
-                  "Delivered": "bg-emerald-100 text-emerald-700",
-                  "Cancelled": "bg-red-100 text-red-700",
-                  "Not Available": "bg-slate-100 text-slate-600",
-                };
-                
-                const statusIcons = {
-                  "Scheduled": "📅",
-                  "Picked Up": "📦",
-                  "In Transit": "🚛",
-                  "Out for Delivery": "🛵",
-                  "Delivered": "✅",
-                  "Cancelled": "❌",
-                  "Not Available": "⏳",
-                };
-
-                return (
-                  <div key={order._id} className="rounded-xl border border-earth-200 bg-white p-4">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="font-mono text-sm text-slate-500">Order ID</p>
-                        <p className="font-semibold text-slate-900">{order._id}</p>
-                      </div>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${statusColors[status] || statusColors["Not Available"]}`}>
-                        <span>{statusIcons[status] || "⏳"}</span>
-                        {status}
-                      </span>
-                    </div>
-                    
-                    {/* Status Stepper */}
-                    <div className="relative mb-4">
-                      <div className="absolute left-0 top-3 h-0.5 w-full bg-slate-200">
-                        <div 
-                          className="h-full bg-earth-500 transition-all"
-                          style={{ 
-                            width: `${(() => {
-                              const steps = ["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"];
-                              const idx = steps.indexOf(status);
-                              if (idx === -1) return "0%";
-                              if (idx === steps.length - 1) return "100%";
-                              return `${(idx / (steps.length - 1)) * 100}%`;
-                            })()}` 
-                          }}
-                        />
-                      </div>
-                      <div className="relative flex justify-between">
-                        {["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"].map((step, idx) => {
-                          const currentIdx = ["Scheduled", "Picked Up", "In Transit", "Out for Delivery", "Delivered"].indexOf(status);
-                          const isCompleted = idx <= currentIdx && currentIdx !== -1;
-                          const isCurrent = idx === currentIdx;
-                          
-                          return (
-                            <div key={step} className="flex flex-col items-center">
-                              <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs ${
-                                isCompleted 
-                                  ? "border-earth-500 bg-earth-500 text-white" 
-                                  : "border-slate-300 bg-white text-slate-400"
-                              } ${isCurrent ? "ring-2 ring-earth-200" : ""}`}>
-                                {isCompleted ? "✓" : idx + 1}
-                              </div>
-                              <span className={`mt-1 text-xs ${isCompleted || isCurrent ? "text-slate-700" : "text-slate-400"}`}>
-                                {step}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    
-                    {/* Delivery Details */}
-                    {logistics && (
-                      <div className="mt-3 grid gap-2 rounded-lg bg-earth-50/50 p-3 text-sm">
-                        {logistics.deliveryLocation && (
-                          <div className="flex items-center gap-2">
-                            <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span className="text-slate-700">{logistics.deliveryLocation}</span>
-                          </div>
-                        )}
-                        {logistics.deliveryPartner && (
-                          <div className="flex items-center gap-2">
-                            <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            <span className="text-slate-700">Driver: {logistics.deliveryPartner}</span>
-                          </div>
-                        )}
-                        {logistics.expectedDeliveryDate && (
-                          <div className="flex items-center gap-2">
-                            <svg className="h-4 w-4 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="text-slate-700">Expected: {new Date(logistics.expectedDeliveryDate).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </PageCard>
+        <TrackDeliverySection data={data} actions={actions} />
       ) : null}
 
       {activeSection === "messages" ? (
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <PageCard title="Message support" subtitle="Send a message to another user by ID.">
+        <PageCard title="Message support" subtitle="Send a message to a farmer.">
           <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); actions.sendMessage({ senderId: user._id, receiverId: messageTarget, messageText }); setMessageText(""); }}>
-            <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Receiver user ID" value={messageTarget} onChange={(event) => setMessageTarget(event.target.value)} required />
+            <label className="grid gap-1">
+              <span className="text-sm font-semibold text-slate-700">Select Farmer</span>
+              <select
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+                value={messageTarget}
+                onChange={(event) => setMessageTarget(event.target.value)}
+                required
+              >
+                <option value="">-- Select a farmer --</option>
+                {Array.from(new Map(data.products?.map(p => {
+                  const farmer = p.store?.farmer;
+                  return farmer ? [farmer._id, farmer] : null;
+                }).filter(Boolean)).values()).map((farmer) => (
+                  <option key={farmer._id} value={farmer._id}>{farmer.name}</option>
+                ))}
+              </select>
+            </label>
             <textarea className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" placeholder="Message" value={messageText} onChange={(event) => setMessageText(event.target.value)} rows={3} required />
             <button className="rounded-xl bg-earth-600 px-4 py-2.5 font-semibold text-white transition hover:bg-earth-700" type="submit">Send message</button>
           </form>

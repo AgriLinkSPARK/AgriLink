@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Logistics from "../models/logistics.js";
 import asyncHandler from "../middleware/asyncHandler.js";
 import whatsappService from "../services/whatsappService.js";
@@ -96,6 +97,44 @@ export const createLogistics = asyncHandler(async (req, res) => {
     message: "Logistics record created successfully",
     data: logistics,
     whatsappNotification
+  });
+});
+
+// GET BY ORDER ID (for customers)
+export const getLogisticsByOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  console.log(`[Backend Track] Received orderId: ${orderId}`);
+
+  // Convert string orderId to ObjectId for MongoDB query
+  let orderObjectId;
+  try {
+    orderObjectId = new mongoose.Types.ObjectId(orderId);
+    console.log(`[Backend Track] Converted to ObjectId: ${orderObjectId}`);
+  } catch (error) {
+    console.log(`[Backend Track] Invalid ObjectId format: ${error.message}`);
+    res.status(400);
+    throw new Error("Invalid Order ID format. Please try again.");
+  }
+
+  const logistics = await Logistics.findOne({ orderId: orderObjectId })
+    .populate("orderId", "_id items totalAmount paymentStatus")
+    .sort({ createdAt: -1 });
+
+  console.log(`[Backend Track] Query result: ${logistics ? 'found' : 'not found'}`);
+
+  if (!logistics) {
+    // Try to find by string orderId as fallback
+    const logisticsByString = await Logistics.findOne({ orderId: orderId });
+    console.log(`[Backend Track] Fallback string query result: ${logisticsByString ? 'found' : 'not found'}`);
+
+    res.status(404);
+    throw new Error("Invalid Order ID. Please try again.");
+  }
+
+  res.json({
+    success: true,
+    message: "Delivery details retrieved successfully",
+    data: logistics
   });
 });
 

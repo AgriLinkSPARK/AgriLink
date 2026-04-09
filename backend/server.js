@@ -135,17 +135,17 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 10000,
-      family: 4,
-    });
+  // Start the server immediately
+  app.listen(PORT, () => console.log(`🔴 Server running on port ${PORT}`));
 
-    app.listen(PORT, () => console.log(`🔴 Server running on port ${PORT}`));
-  } catch (err) {
-    console.error("Failed to connect to MongoDB. Server not started.", err);
-    process.exit(1);
-  }
+  // Attempt to connect to MongoDB asynchronously (non-blocking)
+  // Errors are caught separately to prevent server crash
+  mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 10000,
+    family: 4,
+  }).catch((err) => {
+    console.error("MongoDB connection error (will retry):", err.message);
+  });
 };
 
 startServer();

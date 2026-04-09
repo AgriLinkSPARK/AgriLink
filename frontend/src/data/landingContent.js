@@ -1,4 +1,4 @@
-export const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080/api";
+export const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api";
 
 export const AUTH_MODES = {
   buyer: {

@@ -71,10 +71,10 @@ function App() {
 
           const dashboardData = dashboard.data || {};
           const productsData = products.data || [];
-          const cartData = cart.data || { items: [] };
-          const ordersData = orders.data || [];
-          const profileData = profile.data || {};
-          const reviewsData = reviews.data || [];
+          const cartData = cart.data || cart || { items: [] };
+          const ordersData = orders.data || orders || [];
+          const profileData = profile.data || profile || {};
+          const reviewsData = reviews.data || reviews || [];
 
           setBuyerState({
             user: dashboardData.user || profileData.user || profileData,
@@ -83,7 +83,7 @@ function App() {
             orders: ordersData,
             reviews: reviewsData,
             cartTotal: (cartData.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
-            unpaidOrders: ordersData.filter((order) => order.paymentStatus !== "Paid").length,
+            unpaidOrders: ordersData.filter((order) => order.paymentStatus !== "Paid" && order.status !== "Cancelled").length,
             greeting: dashboard.message || "Welcome back",
           });
         } else {
@@ -391,7 +391,7 @@ function App() {
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">AgriLink</p>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">Unable to load dashboard</h1>
               <p className="mt-2 text-sm font-semibold text-red-700">{error}</p>
-              <p className="mt-2 text-slate-600">Start backend on port 8080 and try again, or clear the current session.</p>
+              <p className="mt-2 text-slate-600">Start backend on port 5000 and try again, or clear the current session.</p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <button className="rounded-xl bg-earth-600 px-4 py-2 font-semibold text-white transition hover:bg-earth-700" type="button" onClick={logout}>Go home</button>
                 <button className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50" type="button" onClick={logout}>Clear session</button>

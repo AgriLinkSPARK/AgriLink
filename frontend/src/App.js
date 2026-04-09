@@ -199,54 +199,65 @@ function App() {
     logout,
     addToCart: async (productId) => {
       await apiRequest("/cart/add", { method: "POST", token: session.token, body: { productId, quantity: 1 } });
-      const cart = await apiRequest("/cart", { token: session.token });
+      const cartRes = await apiRequest("/cart", { token: session.token });
+      const cartData = cartRes.data || { items: [] };
       setBuyerState((current) => ({
         ...current,
-        cart,
-        cartTotal: (cart?.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
+        cart: cartData,
+        cartTotal: (cartData.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
       }));
     },
     updateCart: async (productId, quantity) => {
       await apiRequest(`/cart/update/${productId}`, { method: "PUT", token: session.token, body: { quantity } });
-      const cart = await apiRequest("/cart", { token: session.token });
+      const cartRes = await apiRequest("/cart", { token: session.token });
+      const cartData = cartRes.data || { items: [] };
       setBuyerState((current) => ({
         ...current,
-        cart,
-        cartTotal: (cart?.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
+        cart: cartData,
+        cartTotal: (cartData.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
       }));
     },
     removeFromCart: async (productId) => {
       await apiRequest(`/cart/remove/${productId}`, { method: "DELETE", token: session.token });
-      const cart = await apiRequest("/cart", { token: session.token });
+      const cartRes = await apiRequest("/cart", { token: session.token });
+      const cartData = cartRes.data || { items: [] };
       setBuyerState((current) => ({
         ...current,
-        cart,
-        cartTotal: (cart?.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
+        cart: cartData,
+        cartTotal: (cartData.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
       }));
     },
     checkout: async () => {
       await apiRequest("/orders/checkout", { method: "POST", token: session.token });
-      const [cart, orders] = await Promise.all([
+      const [cartRes, ordersRes] = await Promise.all([
         apiRequest("/cart", { token: session.token }),
         apiRequest("/orders/my-orders", { token: session.token }),
       ]);
+      const cartData = cartRes.data || { items: [] };
+      const ordersData = ordersRes.data || ordersRes || [];
       setBuyerState((current) => ({
         ...current,
-        cart,
-        orders,
+        cart: cartData,
+        orders: ordersData,
         cartTotal: 0,
-        unpaidOrders: (orders || []).filter((order) => order.paymentStatus !== "Paid").length,
+        unpaidOrders: ordersData.filter((order) => order.paymentStatus !== "Paid").length,
       }));
     },
     pay: async (orderId) => {
       await apiRequest(`/orders/pay/${orderId}`, { method: "PUT", token: session.token });
-      const orders = await apiRequest("/orders/my-orders", { token: session.token });
-      setBuyerState((current) => ({ ...current, orders, unpaidOrders: (orders || []).filter((order) => order.paymentStatus !== "Paid").length }));
+      const ordersRes = await apiRequest("/orders/my-orders", { token: session.token });
+      const ordersData = ordersRes.data || ordersRes || [];
+      setBuyerState((current) => ({ ...current, orders: ordersData, unpaidOrders: ordersData.filter((order) => order.paymentStatus !== "Paid").length }));
+    },
+    createPaymentIntent: async (orderId) => {
+      const result = await apiRequest(`/payment/create-payment-intent/${orderId}`, { method: "POST", token: session.token });
+      return result.clientSecret || result.data?.clientSecret || result;
     },
     cancel: async (orderId) => {
       await apiRequest(`/orders/cancel/${orderId}`, { method: "PUT", token: session.token });
-      const orders = await apiRequest("/orders/my-orders", { token: session.token });
-      setBuyerState((current) => ({ ...current, orders, unpaidOrders: (orders || []).filter((order) => order.paymentStatus !== "Paid").length }));
+      const ordersRes = await apiRequest("/orders/my-orders", { token: session.token });
+      const ordersData = ordersRes.data || ordersRes || [];
+      setBuyerState((current) => ({ ...current, orders: ordersData, unpaidOrders: ordersData.filter((order) => order.paymentStatus !== "Paid").length }));
     },
     sendMessage: async (payload) => apiRequest("/messages", { method: "POST", token: session.token, body: payload }),
     createReview: async (payload) => apiRequest("/reviews", { method: "POST", token: session.token, body: payload }),

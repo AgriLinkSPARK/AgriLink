@@ -1,5 +1,6 @@
 import Order from "../models/order.js";
 import Cart from "../models/Cart.js";
+import { sendSuccess, sendCreated } from "../utils/responseHandler.js";
 
 // Checkout → create order from cart
 export const checkout = async (req, res) => {
@@ -23,7 +24,7 @@ export const checkout = async (req, res) => {
     cart.items = [];
     await cart.save();
 
-    res.status(201).json({ message: "Order created. Proceed to payment.", order });
+    sendCreated(res, order, "Order created. Proceed to payment.");
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
@@ -34,7 +35,7 @@ export const checkout = async (req, res) => {
 export const getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ buyerId: req.user.id }).populate("items.productId");
-    res.json(orders);
+    sendSuccess(res, orders, "Orders retrieved successfully");
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
@@ -51,7 +52,7 @@ export const markAsPaid = async (req, res) => {
     order.status = "Confirmed";
     await order.save();
 
-    res.json({ message: "Payment successful (simulated)", order });
+    sendSuccess(res, order, "Payment successful (simulated)");
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
@@ -69,9 +70,9 @@ export const cancelOrder = async (req, res) => {
     order.status = "Cancelled";
     await order.save();
 
-    res.json({ message: "Order cancelled successfully", order });
+    sendSuccess(res, order, "Order cancelled successfully");
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
   }
-};
+};

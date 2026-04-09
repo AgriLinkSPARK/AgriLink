@@ -38,10 +38,15 @@ export const createPaymentIntent = async (req, res) => {
 
     // 3. Guard: cancelled order cannot be paid
     if (order.status === "Cancelled") {
-      return res.status(400).json({ message: "Cannot pay for a cancelled order." });
+      return res.status(400).json({ message: "This order has been cancelled and cannot be paid." });
     }
 
-    // 4. Idempotency: reuse existing open PaymentIntent
+    // 4. Guard: invalid price
+    if (!order.totalPrice || order.totalPrice <= 0) {
+      return res.status(400).json({ message: "Invalid order amount. Payment cannot be processed." });
+    }
+
+    // 5. Idempotency: reuse existing open PaymentIntent
     if (order.stripePaymentIntentId) {
       try {
         const existingIntent = await stripe.paymentIntents.retrieve(
@@ -54,13 +59,13 @@ export const createPaymentIntent = async (req, res) => {
           existingIntent.status !== "canceled"
         ) {
           return res.json({
+            success: true,
             clientSecret: existingIntent.client_secret,
             paymentIntentId: existingIntent.id,
-            amount: existingIntent.amount,
-            currency: existingIntent.currency
           });
         }
-      } catch {
+      } catch (err) {
+        console.warn("[createPaymentIntent] Existing intent retrieval failed, will create new one:", err.message);
         // Intent may have been archived/deleted – fall through to create a new one
       }
     }
@@ -89,6 +94,7 @@ export const createPaymentIntent = async (req, res) => {
     await order.save();
 
     return res.json({
+      success: true,
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
       amount: paymentIntent.amount,

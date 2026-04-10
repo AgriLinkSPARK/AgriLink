@@ -106,32 +106,104 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
       {error ? <p className="mb-3 text-sm font-medium text-red-700">{error}</p> : null}
 
       {activeSection === "products" ? (
-      <PageCard title="Products" subtitle="Browse products from farmers.">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.products.map((product) => (
-            <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4" key={product._id}>
-              {product.mainImage && (
-                <div className="mb-3 overflow-hidden rounded-xl bg-gray-200 aspect-video">
-                  <img 
-                    src={product.mainImage} 
-                    alt={product.name} 
-                    className="h-full w-full object-cover transition duration-300 hover:scale-105"
-                  />
-                </div>
-              )}
-              <strong className="text-base font-bold text-slate-900">{product.name}</strong>
-              <p className="mt-1 text-sm text-slate-600">{product.category} • {money(product.price)} • {product.quantity} {product.unit}</p>
-              <button 
-                type="button" 
-                className="mt-3 rounded-lg border border-earth-300 bg-white px-3 py-1.5 text-sm font-semibold text-earth-700 transition hover:bg-earth-100 disabled:opacity-50" 
-                onClick={() => handleAddToCart(product._id)}
-                disabled={isProcessingCart === product._id}
-              >
-                {isProcessingCart === product._id ? "Adding..." : "Add to cart"}
-              </button>
-            </article>
-          ))}
+      <PageCard title="Products" subtitle="Browse, search, and filter products from farmers.">
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="md:col-span-2">
+            <input 
+              type="text"
+              placeholder="Search products..."
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+              value={data.productFilters?.search || ""}
+              onChange={(e) => actions.setProductFilters({ search: e.target.value })}
+            />
+          </div>
+          <select 
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+            value={data.productFilters?.category || "all"}
+            onChange={(e) => actions.setProductFilters({ category: e.target.value })}
+          >
+            <option value="all">All Categories</option>
+            <option value="Vegetables">Vegetables</option>
+            <option value="Fruits">Fruits</option>
+            <option value="Grains">Grains</option>
+            <option value="Dairy">Dairy</option>
+            <option value="Other">Other</option>
+          </select>
         </div>
+
+        {data.products.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-slate-500 text-lg">No products found matching your criteria.</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {data.products.map((product) => (
+                <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4 flex flex-col" key={product._id}>
+                  {product.mainImage && (
+                    <div className="mb-3 overflow-hidden rounded-xl bg-gray-200 aspect-video">
+                      <img 
+                        src={product.mainImage} 
+                        alt={product.name} 
+                        className="h-full w-full object-cover transition duration-300 hover:scale-105"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <strong className="text-base font-bold text-slate-900">{product.name}</strong>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-earth-600">{product.category}</p>
+                    <p className="mt-1 text-sm text-slate-600 line-clamp-2">{product.description}</p>
+                    <p className="mt-2 text-sm font-bold text-slate-900">{money(product.price)} per {product.unit}</p>
+                    <p className="text-xs text-slate-500">{product.quantity} {product.unit} available</p>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="mt-4 w-full rounded-xl border border-earth-300 bg-white px-3 py-2 text-sm font-semibold text-earth-700 transition hover:bg-earth-600 hover:text-white disabled:opacity-50" 
+                    onClick={() => handleAddToCart(product._id)}
+                    disabled={isProcessingCart === product._id}
+                  >
+                    {isProcessingCart === product._id ? "Adding..." : "Add to cart"}
+                  </button>
+                </article>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {data.productPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-2">
+                <button
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-30"
+                  disabled={data.productPage <= 1}
+                  onClick={() => actions.setProductFilters({ page: data.productPage - 1 })}
+                >
+                  Previous
+                </button>
+                <div className="flex gap-1">
+                  {[...Array(data.productPages)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      className={`h-8 w-8 rounded-lg text-sm font-bold transition ${
+                        data.productPage === i + 1
+                          ? "bg-earth-600 text-white"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                      onClick={() => actions.setProductFilters({ page: i + 1 })}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-30"
+                  disabled={data.productPage >= data.productPages}
+                  onClick={() => actions.setProductFilters({ page: data.productPage + 1 })}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </PageCard>
       ) : null}
 

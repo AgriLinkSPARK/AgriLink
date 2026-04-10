@@ -30,16 +30,26 @@ export const formatErrorResponse = (error) => {
  * Global error handling middleware
  */
 export const errorMiddleware = (err, req, res, next) => {
-  const statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  const isDbUnavailable =
+    err?.name === "MongooseServerSelectionError" ||
+    /buffering timed out/i.test(err?.message || "");
+
+  const statusCode = isDbUnavailable
+    ? HTTP_STATUS.SERVICE_UNAVAILABLE
+    : (err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR);
+
+  const normalizedError = isDbUnavailable
+    ? { ...err, message: "Database temporarily unavailable. Please try again." }
+    : err;
   
   console.error("Error:", {
-    message: err.message,
+    message: normalizedError.message,
     stack: err.stack,
     path: req.path,
     method: req.method,
   });
 
-  res.status(statusCode).json(formatErrorResponse(err));
+  res.status(statusCode).json(formatErrorResponse(normalizedError));
 };
 
 /**

@@ -113,9 +113,6 @@ class ProductService {
     return true;
   }
 
-  /**
-   * Get all products with paging, search and filters (public)
-   */
   async getAllProducts(queryOptions = {}) {
     const { 
       page = 1, 
@@ -143,9 +140,12 @@ class ProductService {
       ];
     }
 
-    // Execute query with pagination
+    // Execute query with pagination and deep population
     const products = await Product.find(query)
-      .populate("store")
+      .populate({
+        path: "store",
+        populate: { path: "farmer", select: "_id name" }
+      })
       .skip(skip)
       .limit(Number(limit))
       .sort({ [sortBy]: sortOrder === "desc" ? -1 : 1 });

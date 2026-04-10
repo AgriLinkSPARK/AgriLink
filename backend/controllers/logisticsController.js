@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Logistics from "../models/logistics.js";
 import asyncHandler from "../middleware/asyncHandler.js";
 import whatsappService from "../services/whatsappService.js";
@@ -99,6 +100,44 @@ export const createLogistics = asyncHandler(async (req, res) => {
   });
 });
 
+// GET BY ORDER ID (for customers)
+export const getLogisticsByOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  console.log(`[Backend Track] Received orderId: ${orderId}`);
+
+  // Convert string orderId to ObjectId for MongoDB query
+  let orderObjectId;
+  try {
+    orderObjectId = new mongoose.Types.ObjectId(orderId);
+    console.log(`[Backend Track] Converted to ObjectId: ${orderObjectId}`);
+  } catch (error) {
+    console.log(`[Backend Track] Invalid ObjectId format: ${error.message}`);
+    res.status(400);
+    throw new Error("Invalid Order ID format. Please try again.");
+  }
+
+  const logistics = await Logistics.findOne({ orderId: orderObjectId })
+    .populate("orderId", "_id items totalAmount paymentStatus")
+    .sort({ createdAt: -1 });
+
+  console.log(`[Backend Track] Query result: ${logistics ? 'found' : 'not found'}`);
+
+  if (!logistics) {
+    // Try to find by string orderId as fallback
+    const logisticsByString = await Logistics.findOne({ orderId: orderId });
+    console.log(`[Backend Track] Fallback string query result: ${logisticsByString ? 'found' : 'not found'}`);
+
+    res.status(404);
+    throw new Error("Invalid Order ID. Please try again.");
+  }
+
+  res.json({
+    success: true,
+    message: "Delivery details retrieved successfully",
+    data: logistics
+  });
+});
+
 // GET ALL (with filtering + pagination)
 export const getLogistics = asyncHandler(async (req, res) => {
   const { status, page = 1, limit = 10 } = req.query;
@@ -150,6 +189,7 @@ export const updateLogistics = asyncHandler(async (req, res) => {
   }
 
   const oldStatus = logistics.status;
+  const shouldNotify = req.body.notify !== false; // default to true if not specified
   logistics.status = req.body.status || logistics.status;
 
   if (req.body.status === "Delivered") {
@@ -159,7 +199,7 @@ export const updateLogistics = asyncHandler(async (req, res) => {
   const updated = await logistics.save();
   let whatsappNotification = { attempted: false, sent: false, reason: "Status unchanged" };
 
-  if (oldStatus !== updated.status) {
+  if (oldStatus !== updated.status && shouldNotify) {
     try {
       whatsappNotification = await sendLogisticsStatusNotification(updated, oldStatus);
     } catch (error) {
@@ -170,6 +210,11 @@ export const updateLogistics = asyncHandler(async (req, res) => {
         error: error.message
       };
     }
+  } else if (oldStatus === updated.status) {
+    whatsappNotification = { attempted: false, sent: false, reason: "Status unchanged" };
+  } else if (!shouldNotify) {
+    whatsappNotification = { attempted: false, sent: false, reason: "Notification disabled by user" };
+    console.log(`ℹ️ WhatsApp skipped (Logistics STATUS) | notify=false set by user`);
   }
 
   if (whatsappNotification?.sent) {

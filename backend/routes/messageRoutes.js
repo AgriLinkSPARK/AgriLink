@@ -3,6 +3,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 import {
   sendMessage,
   getConversation,
+  getInbox,
   editMessage
 } from "../controllers/messageController.js";
 
@@ -10,6 +11,9 @@ const router = express.Router();
 
 // Send a message (customer and farmer can message)
 router.post("/", protect, authorize("customer", "farmer"), sendMessage);
+
+// Get my inbox (all messages for current user)
+router.get("/inbox", protect, authorize("customer", "farmer"), getInbox);
 
 // Get messages between two users
 router.get("/", protect, authorize("customer", "farmer"), getConversation);

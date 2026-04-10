@@ -43,17 +43,14 @@ app.post(
 // ─── Global middleware ────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.CLIENT_URL,
-  "http://localhost:5173",  // 👈 correct frontend
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "http://localhost:5173",
 ].filter(Boolean).map((origin) => origin.replace(/\/$/, ""));
 
 const corsOptions = {
   origin(origin, callback) {
-    // Allow non-browser requests (Postman/cURL/server-to-server).
-    if (!origin) {
-      return callback(null, true);
-    }
+    if (!origin) return callback(null, true);
 
     const normalizedOrigin = origin.replace(/\/$/, "");
     if (allowedOrigins.includes(normalizedOrigin)) {
@@ -71,24 +68,50 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// ─── MongoDB connection ───────────────────────────────────────────────────────
-if (process.env.NODE_ENV !== "test") {
-  mongoose
-    .connect(process.env.MONGO_URI)
-    .then(() => console.log("🟢 MongoDB connected"))
-    .catch((err) => console.error("MongoDB connection error:", err));
-}
+// ─── MongoDB lifecycle logging ───────────────────────────────────────────────
+mongoose.connection.on("connected", () => {
+  console.log("🟢 MongoDB connected");
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.warn("🟡 MongoDB disconnected");
+});
+
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB connection error:", err);
+});
+
+const requireDatabaseConnection = (req, res, next) => {
+  if (process.env.NODE_ENV === "test") return next();
+
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: "Database unavailable. Please try again in a moment.",
+    });
+  }
+
+  next();
+};
 
 // ─── Health check ─────────────────────────────────────────────────────────────
-app.get("/", (req, res) => res.send("AgriLink API is running..."));
+app.get("/", (req, res) => {
+  res.json({
+    message: "AgriLink API is running...",
+    dbReadyState: mongoose.connection.readyState,
+  });
+});
+
+// Protect API routes from buffering timeouts when DB is not ready.
+app.use("/api", requireDatabaseConnection);
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/product", productRoutes);   // alias kept for backwards compatibility
+app.use("/api/product", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/payment", paymentRoutes);   // authenticated payment routes
+app.use("/api/payment", paymentRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/farmer", farmerRoutes);
@@ -99,17 +122,32 @@ app.use("/api/messages", messageRoutes);
 // Swagger Documentation Route
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-
 // Error handling middleware (must be last)
 app.use(errorMiddleware);
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== "test") {
+
+const startServer = async () => {
+  if (process.env.NODE_ENV === "test") return;
+
+  if (!process.env.MONGO_URI) {
+    console.error("Missing MONGO_URI in environment variables");
+    process.exit(1);
+  }
+
+  // Start the server immediately
   app.listen(PORT, () => console.log(`🔴 Server running on port ${PORT}`));
-}
+
+  // Attempt to connect to MongoDB asynchronously
+  mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 10000,
+    family: 4,
+  }).catch((err) => {
+    console.error("MongoDB connection error (will retry):", err.message);
+  });
+};
+
+startServer();
 
 export default app;
-
-
-// final commit 80% backend 

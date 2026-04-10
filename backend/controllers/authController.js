@@ -79,16 +79,7 @@ export const registerFarmer = asyncHandler(async (req, res) => {
   emailService.sendFarmerWelcome(farmer.email, farmer.name);
 
   const token = authService.generateToken(farmer);
-  sendCreated(
-    res,
-    {
-      token,
-      role: farmer.role,
-      last_log_at: farmer.last_log_at,
-      requiresStoreSetup: true,
-    },
-    "Farmer registration successful"
-  );
+  sendCreated(res, { token, role: farmer.role }, "Farmer registration successful");
 });
 
 // ==========================
@@ -104,7 +95,6 @@ export const farmerDashboard = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      last_log_at: user.last_log_at,
     },
     data: {
       crops: [],

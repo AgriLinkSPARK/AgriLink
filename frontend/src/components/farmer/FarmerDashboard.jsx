@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PageCard from "../common/PageCard";
 import StatGrid from "../common/StatGrid";
 
@@ -14,12 +14,6 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
     location: data.store?.location || "",
     phone: data.store?.phone || "",
   });
-
-  // Messages/Inbox state
-  const [inbox, setInbox] = useState([]);
-  const [selectedBuyer, setSelectedBuyer] = useState(null);
-  const [inboxLoading, setInboxLoading] = useState(false);
-  const [inboxError, setInboxError] = useState(null);
 
   const stats = useMemo(() => [
     { label: "Store", value: data.store?.name || "My Store", note: "Farm marketplace" },
@@ -189,11 +183,7 @@ function MessagesInbox({ actions, currentUser }) {
   const [inboxLoading, setInboxLoading] = useState(false);
   const [inboxError, setInboxError] = useState(null);
 
-  useEffect(() => {
-    loadInbox();
-  }, []);
-
-  const loadInbox = async () => {
+  const loadInbox = useCallback(async () => {
     setInboxLoading(true);
     setInboxError(null);
     try {
@@ -201,7 +191,6 @@ function MessagesInbox({ actions, currentUser }) {
       const grouped = (data || []).reduce((acc, msg) => {
         const myId = currentUser?._id;
         const senderId = msg.senderId?._id || msg.senderId;
-        const receiverId = msg.receiverId?._id || msg.receiverId;
 
         // Group by the "other" person
         const isMeSender = senderId === myId;
@@ -229,7 +218,11 @@ function MessagesInbox({ actions, currentUser }) {
     } finally {
       setInboxLoading(false);
     }
-  };
+  }, [actions, currentUser?._id]);
+
+  useEffect(() => {
+    loadInbox();
+  }, [loadInbox]);
 
   const selectedConversation = selectedBuyer
     ? inbox.find((conv) => (conv.otherPersonInfo?._id || conv.otherPersonInfo) === selectedBuyer)

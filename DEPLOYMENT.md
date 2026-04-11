@@ -12,6 +12,20 @@ It also includes Railway + Netlify alternatives.
 - Prepare production secrets (MongoDB URI, JWT secret, Stripe keys, Cloudinary, etc.).
 - Do not reuse development/test secrets in production.
 
+## Quick Start: Render + Vercel Dashboard Steps
+
+**👉 For exact step-by-step dashboard clicks and configurations, see [RENDER_VERCEL_DEPLOYMENT.md](RENDER_VERCEL_DEPLOYMENT.md)**
+
+It includes:
+- Exact Render dashboard configuration
+- Exact Vercel dashboard configuration
+- Environment variable setup for both
+- Webhook configuration
+- Verification checklist
+- Common issues & fixes
+
+---
+
 ## 2. Backend Deployment (Render)
 
 ### Option A: One-click with Blueprint

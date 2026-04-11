@@ -324,7 +324,6 @@ function TrackDeliverySection({ data, actions }) {
 
 function BuyerDashboard({ data, user, loading, error, actions }) {
   const [activeSection, setActiveSection] = useState("products");
-  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState(null);
   const [messageTarget, setMessageTarget] = useState("");
   const [messageText, setMessageText] = useState("");
   const [reviewForm, setReviewForm] = useState({ productId: data.products[0]?._id || "", rating: 5, comment: "" });

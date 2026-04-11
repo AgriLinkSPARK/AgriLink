@@ -100,7 +100,8 @@ function App() {
           const productsData = productsRes.data || [];
           const logisticsData = logisticsRes.data || [];
           const logisticsPagination = logisticsRes.pagination || null;
-          const ordersData = ordersRes.data || ordersRes || [];
+          const ordersData = ordersRes.data?.data || ordersRes.data || ordersRes || [];
+          const ordersPagination = ordersRes.data?.pagination || null;
 
           setAdminState({
             users: usersData,
@@ -108,6 +109,7 @@ function App() {
             logistics: logisticsData,
             logisticsPagination,
             orders: ordersData,
+            ordersPagination,
             stores: [],
             customers: usersData.filter((entry) => entry.role === "customer").length,
             farmers: usersData.filter((entry) => entry.role === "farmer").length,
@@ -371,11 +373,12 @@ function App() {
         logisticsPagination: logisticsRes.pagination || null,
       }));
     },
-    fetchOrders: async () => {
-      const ordersRes = await apiRequest("/orders/all", { token: session.token });
+    fetchOrders: async (page = 1, limit = 10) => {
+      const ordersRes = await apiRequest(`/orders/all?page=${page}&limit=${limit}`, { token: session.token });
       setAdminState((current) => ({
         ...current,
-        orders: ordersRes.data || ordersRes || [],
+        orders: ordersRes.data?.data || ordersRes.data || ordersRes || [],
+        ordersPagination: ordersRes.data?.pagination || null,
       }));
     },
     createLogistics: async (payload) => {

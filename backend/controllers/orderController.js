@@ -81,10 +81,20 @@ export const cancelOrder = async (req, res) => {
 // Get all orders (admin only)
 export const getAllOrders = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const totalOrders = await Order.countDocuments();
+    const totalPages = Math.ceil(totalOrders / limit);
+
     const orders = await Order.find()
       .populate("buyerId", "name email phone")
       .populate("items.productId", "name price")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
     
     // Format orders to include customer info
     const formattedOrders = orders.map(order => ({
@@ -103,7 +113,17 @@ export const getAllOrders = async (req, res) => {
       createdAt: order.createdAt
     }));
     
-    sendSuccess(res, formattedOrders, "All orders retrieved successfully");
+    sendSuccess(res, {
+      data: formattedOrders,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalRecords: totalOrders,
+        recordsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    }, "All orders retrieved successfully");
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import PageCard from "../common/PageCard";
+import Pagination from "../common/Pagination";
 
 
 
@@ -24,7 +25,7 @@ const STATUS_OPTIONS = [
 
 
 
-function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogistics, onUpdateStatus, onDeleteLogistics, pagination, onPageChange, orders = [], onRefreshOrders }) {
+function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogistics, onUpdateStatus, onDeleteLogistics, pagination, onPageChange, orders = [], ordersPagination, onRefreshOrders }) {
 
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -33,6 +34,10 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
   const [activeTab, setActiveTab] = useState("orders"); // "orders" or "logistics"
+
+  // Local pagination state for orders
+  const [ordersPage, setOrdersPage] = useState(1);
+  const itemsPerPage = 10;
 
 
 
@@ -225,6 +230,15 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
     return orders.filter(order => !orderIdsWithLogistics.has(order._id));
   }, [orders, data.logistics]);
 
+  // Pagination for orders without logistics
+  const paginatedOrdersWithoutLogistics = useMemo(() => {
+    const start = (ordersPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return ordersWithoutLogistics.slice(start, end);
+  }, [ordersWithoutLogistics, ordersPage]);
+
+  const totalOrdersPages = Math.ceil(ordersWithoutLogistics.length / itemsPerPage);
+
   const getStatusBadge = (status) => {
 
     const option = STATUS_OPTIONS.find(opt => opt.value === status) || STATUS_OPTIONS[0];
@@ -345,7 +359,7 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {ordersWithoutLogistics.map((order) => (
+                    {paginatedOrdersWithoutLogistics.map((order) => (
                       <tr key={order._id} className="hover:bg-slate-50/50">
                         <td className="px-4 py-4">
                           <span className="font-mono text-sm font-semibold text-slate-900">
@@ -398,6 +412,21 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* Pagination for Orders */}
+          {totalOrdersPages > 1 ? (
+            <Pagination
+              currentPage={ordersPage}
+              totalPages={totalOrdersPages}
+              onPageChange={setOrdersPage}
+              totalItems={ordersWithoutLogistics.length}
+              itemsPerPage={itemsPerPage}
+            />
+          ) : ordersWithoutLogistics.length > 0 && (
+            <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Showing all <span className="font-semibold text-slate-900">{ordersWithoutLogistics.length}</span> orders
             </div>
           )}
         </PageCard>
@@ -699,14 +728,26 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
 
             </div>
 
-            {filteredLogistics.length > 0 && (
-
-              <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-
-                Showing {filteredLogistics.length} of {data.logistics?.length || 0} deliveries
-
+            {/* Pagination for Logistics */}
+            {pagination && pagination.totalPages > 1 ? (
+              <Pagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={onPageChange}
+                totalItems={pagination.totalRecords}
+                itemsPerPage={pagination.recordsPerPage}
+              />
+            ) : pagination && pagination.totalRecords > 0 ? (
+              <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Showing all <span className="font-semibold text-slate-900">{pagination.totalRecords}</span> deliveries
               </div>
+            ) : null}
 
+            {/* Fallback count display when no pagination object */}
+            {!pagination && filteredLogistics.length > 0 && (
+              <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                Showing {filteredLogistics.length} of {data.logistics?.length || 0} deliveries
+              </div>
             )}
 
           </div>

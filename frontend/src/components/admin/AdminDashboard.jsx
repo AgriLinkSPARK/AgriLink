@@ -322,6 +322,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
           pagination={data.logisticsPagination}
           onPageChange={actions.fetchLogistics}
           orders={data.orders || []}
+          ordersPagination={data.ordersPagination}
           onRefreshOrders={actions.fetchOrders}
           onViewDetails={(logistics) => {
             setSelectedLogistics(logistics);

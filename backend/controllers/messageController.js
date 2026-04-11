@@ -21,6 +21,20 @@ export const getConversation = asyncHandler(async (req, res) => {
   res.json(messages);
 });
 
+// GET INBOX (all messages involving user)
+export const getInbox = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const messages = await Message.find({
+    $or: [{ senderId: userId }, { receiverId: userId }]
+  })
+    .populate("senderId", "name email")
+    .populate("receiverId", "name email")
+    .sort({ createdAt: -1 });
+
+  res.json({ success: true, data: messages });
+});
+
 // EDIT
 export const editMessage = asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);

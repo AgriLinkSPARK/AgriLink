@@ -117,7 +117,10 @@ class ProductService {
    * Get all products (public)
    */
   async getAllProducts(filters = {}) {
-    const products = await Product.find(filters).populate("store");
+    const products = await Product.find(filters).populate({
+      path: "store",
+      populate: { path: "farmer", select: "_id name" }
+    });
     return products;
   }
 

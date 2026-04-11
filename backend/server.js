@@ -41,11 +41,22 @@ app.post(
 );
 
 // ─── Global middleware ────────────────────────────────────────────────────────
-const allowedOrigins = [
+const envOrigins = [
   process.env.CLIENT_URL,
+  ...(process.env.CLIENT_URLS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+];
+
+const allowedOrigins = [
+  ...envOrigins,
+  "http://localhost:5173",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-].filter(Boolean).map((origin) => origin.replace(/\/$/, ""));
+]
+  .filter(Boolean)
+  .map((origin) => origin.replace(/\/$/, ""));
 
 const corsOptions = {
   origin(origin, callback) {

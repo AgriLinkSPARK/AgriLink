@@ -24,13 +24,15 @@ const STATUS_OPTIONS = [
 
 
 
-function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogistics, onUpdateStatus, onDeleteLogistics, pagination, onPageChange }) {
+function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogistics, onUpdateStatus, onDeleteLogistics, pagination, onPageChange, orders = [], onRefreshOrders }) {
 
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [searchQuery, setSearchQuery] = useState("");
 
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+
+  const [activeTab, setActiveTab] = useState("orders"); // "orders" or "logistics"
 
 
 
@@ -212,7 +214,16 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
 
   }, [data.logistics, statusFilter, searchQuery, dateRange]);
 
-
+  // Compute orders without logistics records
+  const ordersWithoutLogistics = useMemo(() => {
+    if (!orders || !data.logistics) return orders || [];
+    
+    const orderIdsWithLogistics = new Set(
+      data.logistics.map(l => l.orderId?._id || l.orderId).filter(Boolean)
+    );
+    
+    return orders.filter(order => !orderIdsWithLogistics.has(order._id));
+  }, [orders, data.logistics]);
 
   const getStatusBadge = (status) => {
 
@@ -272,6 +283,128 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
 
 
 
+      {/* Tab Navigation */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={() => setActiveTab("orders")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "orders"
+              ? "bg-earth-600 text-white"
+              : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          Orders Needing Delivery ({ordersWithoutLogistics.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("logistics")}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+            activeTab === "logistics"
+              ? "bg-earth-600 text-white"
+              : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          Active Deliveries ({data.logistics?.length || 0})
+        </button>
+      </div>
+
+      {/* Orders Tab */}
+      {activeTab === "orders" && (
+        <PageCard
+          title="Orders Needing Delivery"
+          subtitle="Select an order to create a logistics record"
+          actions={
+            <button
+              onClick={onRefreshOrders}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Refresh Orders
+            </button>
+          }
+        >
+          {ordersWithoutLogistics.length === 0 ? (
+            <div className="py-12 text-center">
+              <svg className="mx-auto mb-3 h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-slate-600">All orders have logistics records assigned!</p>
+              <p className="mt-2 text-sm text-slate-500">No orders need delivery creation.</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200 bg-white">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Order ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Payment</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Total</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {ordersWithoutLogistics.map((order) => (
+                      <tr key={order._id} className="hover:bg-slate-50/50">
+                        <td className="px-4 py-4">
+                          <span className="font-mono text-sm font-semibold text-slate-900">
+                            {order._id}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{order.customer?.name || "Unknown"}</p>
+                            <p className="text-xs text-slate-500">{order.customer?.phone || "No phone"}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            order.status === "Pending" ? "bg-amber-100 text-amber-700" :
+                            order.status === "Confirmed" ? "bg-blue-100 text-blue-700" :
+                            order.status === "Shipped" ? "bg-purple-100 text-purple-700" :
+                            order.status === "Delivered" ? "bg-emerald-100 text-emerald-700" :
+                            order.status === "Cancelled" ? "bg-red-100 text-red-700" :
+                            "bg-slate-100 text-slate-700"
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            order.paymentStatus === "Paid" ? "bg-emerald-100 text-emerald-700" :
+                            order.paymentStatus === "Failed" ? "bg-red-100 text-red-700" :
+                            "bg-amber-100 text-amber-700"
+                          }`}>
+                            {order.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-sm font-semibold text-slate-900">
+                          LKR {Number(order.totalPrice || 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-slate-600">
+                          {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}
+                        </td>
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => onCreateLogistics(order)}
+                            className="rounded-lg bg-earth-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-earth-700"
+                          >
+                            Schedule Delivery
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </PageCard>
+      )}
+
+      {/* Logistics Tab */}
+      {activeTab === "logistics" && (
       <PageCard 
 
         title="Delivery Management" 
@@ -282,13 +415,13 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
 
           <button
 
-            onClick={onCreateLogistics}
+            onClick={() => setActiveTab("orders")}
 
             className="rounded-xl bg-earth-600 px-4 py-2 font-semibold text-white transition hover:bg-earth-700"
 
           >
 
-            + Create Logistics
+            + Create New Delivery
 
           </button>
 
@@ -581,6 +714,7 @@ function LogisticsDashboard({ data, loading, error, onViewDetails, onCreateLogis
         )}
 
       </PageCard>
+      )}
 
     </div>
 

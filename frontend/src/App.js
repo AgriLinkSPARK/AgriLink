@@ -89,22 +89,25 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else {
-          const [usersRes, productsRes, logisticsRes] = await Promise.all([
+          const [usersRes, productsRes, logisticsRes, ordersRes] = await Promise.all([
             apiRequest("/admin/users", { token: session.token }),
             apiRequest("/products/all", { token: session.token }),
             apiRequest("/logistics", { token: session.token }),
+            apiRequest("/orders/all", { token: session.token }),
           ]);
 
           const usersData = usersRes.users || usersRes.data || [];
           const productsData = productsRes.data || [];
           const logisticsData = logisticsRes.data || [];
           const logisticsPagination = logisticsRes.pagination || null;
+          const ordersData = ordersRes.data || ordersRes || [];
 
           setAdminState({
             users: usersData,
             products: productsData,
             logistics: logisticsData,
             logisticsPagination,
+            orders: ordersData,
             stores: [],
             customers: usersData.filter((entry) => entry.role === "customer").length,
             farmers: usersData.filter((entry) => entry.role === "farmer").length,
@@ -366,6 +369,13 @@ function App() {
         ...current,
         logistics: logisticsRes.data || logisticsRes || [],
         logisticsPagination: logisticsRes.pagination || null,
+      }));
+    },
+    fetchOrders: async () => {
+      const ordersRes = await apiRequest("/orders/all", { token: session.token });
+      setAdminState((current) => ({
+        ...current,
+        orders: ordersRes.data || ordersRes || [],
       }));
     },
     createLogistics: async (payload) => {

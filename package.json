@@ -6,8 +6,10 @@
     "dev": "npm --prefix backend run dev"
   },
   "dependencies": {
-    "twilio": "^5.12.2",
+    "@stripe/react-stripe-js": "^6.1.0",
+    "@stripe/stripe-js": "^9.1.0",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "twilio": "^5.12.2"
   }
 }

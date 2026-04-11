@@ -60,7 +60,7 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else if (session.role === "customer") {
-          const [dashboard, products, cart, orders, profile, reviews] = await Promise.all([
+          const [dashboard, productsData, cart, orders, profile, reviews] = await Promise.all([
             apiRequest("/customer/dashboard", { token: session.token }),
             apiRequest("/products/all", { token: session.token }),
             apiRequest("/cart", { token: session.token }),
@@ -70,7 +70,6 @@ function App() {
           ]);
 
           const dashboardData = dashboard.data || {};
-          const productsData = products.data || [];
           const cartData = cart.data || cart || { items: [] };
           const ordersData = orders.data || orders || [];
           const profileData = profile.data || profile || {};
@@ -78,7 +77,10 @@ function App() {
 
           setBuyerState({
             user: dashboardData.user || profileData.user || profileData,
-            products: productsData,
+            products: productsData.data?.products || productsData.products || [],
+            productPage: productsData.data?.page || 1,
+            productPages: productsData.data?.pages || 1,
+            productFilters: { search: "", category: "all", page: 1 },
             cart: cartData,
             orders: ordersData,
             reviews: reviewsData,
@@ -265,6 +267,31 @@ function App() {
       await apiRequest("/customer/profile", { method: "PUT", token: session.token, body: payload });
       const profile = await apiRequest("/customer/profile", { token: session.token });
       setBuyerState((current) => ({ ...current, user: profile.user }));
+    },
+    setProductFilters: async (newFilters) => {
+      setBuyerState(current => {
+        const updatedFilters = { ...current.productFilters, ...newFilters };
+        
+        // Trigger async load
+        const params = new URLSearchParams();
+        if (updatedFilters.search) params.append("search", updatedFilters.search);
+        if (updatedFilters.category && updatedFilters.category !== "all") params.append("category", updatedFilters.category);
+        if (updatedFilters.page) params.append("page", updatedFilters.page);
+        
+        apiRequest(`/products/all?${params.toString()}`, { token: session.token })
+          .then(res => {
+            const result = res.data || res;
+            setBuyerState(latest => ({
+              ...latest,
+              products: result.products || [],
+              productPage: result.page || 1,
+              productPages: result.pages || 1,
+              productFilters: updatedFilters
+            }));
+          });
+
+        return { ...current, productFilters: updatedFilters };
+      });
     },
     trackDelivery: async (orderId) => {
       const response = await apiRequest(`/logistics/order/${orderId}`, { token: session.token });

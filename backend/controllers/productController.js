@@ -7,13 +7,12 @@ import { asyncHandler } from "../utils/errorHandler.js";
 import { sendSuccess, sendCreated } from "../utils/responseHandler.js";
 import { SUCCESS_MESSAGES } from "../constants/index.js";
 
-// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/products/all  (public — any logged-in user, including customers)
-// Returns all products across all stores so customers can browse & add to cart
+// Returns products across all stores with pagination, search, and category filters
 // ─────────────────────────────────────────────────────────────────────────────
 export const getAllProducts = asyncHandler(async (req, res) => {
-  const products = await productService.getAllProducts();
-  sendSuccess(res, products, "Products retrieved successfully");
+  const result = await productService.getAllProducts(req.query);
+  sendSuccess(res, result, "Products retrieved successfully");
 });
 
 // Create product

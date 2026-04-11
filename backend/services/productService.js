@@ -113,15 +113,52 @@ class ProductService {
     return true;
   }
 
-  /**
-   * Get all products (public)
-   */
-  async getAllProducts(filters = {}) {
-    const products = await Product.find(filters).populate({
-      path: "store",
-      populate: { path: "farmer", select: "_id name" }
-    });
-    return products;
+  async getAllProducts(queryOptions = {}) {
+    const { 
+      page = 1, 
+      limit = 10, 
+      category, 
+      search,
+      sortBy = "createdAt",
+      sortOrder = "desc"
+    } = queryOptions;
+
+    const skip = (page - 1) * limit;
+    
+    // Build query
+    let query = {};
+    
+    if (category && category !== "all") {
+      query.category = category;
+    }
+    
+    if (search && search.trim() !== "") {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Execute query with pagination and deep population
+    const products = await Product.find(query)
+      .populate({
+        path: "store",
+        populate: { path: "farmer", select: "_id name" }
+      })
+      .skip(skip)
+      .limit(Number(limit))
+      .sort({ [sortBy]: sortOrder === "desc" ? -1 : 1 });
+
+    const total = await Product.countDocuments(query);
+
+    return {
+      products,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit),
+      limit: Number(limit)
+    };
   }
 
   /**

@@ -60,10 +60,7 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin(origin, callback) {
-    // Allow non-browser requests (Postman/cURL/server-to-server).
-    if (!origin) {
-      return callback(null, true);
-    }
+    if (!origin) return callback(null, true);
 
     const normalizedOrigin = origin.replace(/\/$/, "");
     if (allowedOrigins.includes(normalizedOrigin)) {
@@ -95,6 +92,8 @@ mongoose.connection.on("error", (err) => {
 });
 
 const requireDatabaseConnection = (req, res, next) => {
+  if (process.env.NODE_ENV === "test") return next();
+
   if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({
       success: false,
@@ -119,10 +118,10 @@ app.use("/api", requireDatabaseConnection);
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/product", productRoutes);   // alias kept for backwards compatibility
+app.use("/api/product", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/payment", paymentRoutes);   // authenticated payment routes
+app.use("/api/payment", paymentRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/farmer", farmerRoutes);
@@ -133,7 +132,6 @@ app.use("/api/messages", messageRoutes);
 // Swagger Documentation Route
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-
 // Error handling middleware (must be last)
 app.use(errorMiddleware);
 
@@ -141,6 +139,8 @@ app.use(errorMiddleware);
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  if (process.env.NODE_ENV === "test") return;
+
   if (!process.env.MONGO_URI) {
     console.error("Missing MONGO_URI in environment variables");
     process.exit(1);
@@ -149,8 +149,7 @@ const startServer = async () => {
   // Start the server immediately
   app.listen(PORT, () => console.log(`🔴 Server running on port ${PORT}`));
 
-  // Attempt to connect to MongoDB asynchronously (non-blocking)
-  // Errors are caught separately to prevent server crash
+  // Attempt to connect to MongoDB asynchronously
   mongoose.connect(process.env.MONGO_URI, {
     serverSelectionTimeoutMS: 10000,
     family: 4,
@@ -161,4 +160,4 @@ const startServer = async () => {
 
 startServer();
 
-// final commit 80% backend 
+export default app;

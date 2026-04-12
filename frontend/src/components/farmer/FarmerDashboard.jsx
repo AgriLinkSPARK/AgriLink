@@ -12,6 +12,21 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
   const [isStoreEditorOpen, setIsStoreEditorOpen] = useState(forceStoreSetup);
   const [productToDelete, setProductToDelete] = useState(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+
+  const filteredProducts = useMemo(() => {
+    const keyword = productSearch.trim().toLowerCase();
+    if (!keyword) {
+      return data.products || [];
+    }
+
+    return (data.products || []).filter((product) => {
+      const name = String(product.name || "").toLowerCase();
+      const category = String(product.category || "").toLowerCase();
+      const description = String(product.description || "").toLowerCase();
+      return name.includes(keyword) || category.includes(keyword) || description.includes(keyword);
+    });
+  }, [data.products, productSearch]);
 
   const stats = useMemo(() => [
     { label: "Store", value: data.store?.name || "My Store", note: "Farm marketplace" },
@@ -138,9 +153,19 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
             </button>
           }
         >
-          {data.products && data.products.length > 0 ? (
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search my products by name, category, or description"
+              value={productSearch}
+              onChange={(event) => setProductSearch(event.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+            />
+          </div>
+
+          {filteredProducts && filteredProducts.length > 0 ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {data.products.map((product) => (
+              {filteredProducts.map((product) => (
                 <article
                   key={product._id}
                   role="button"
@@ -203,7 +228,11 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
               ))}
             </div>
           ) : (
-            <p className="text-slate-600">No products listed yet. Use Add products to create your first item.</p>
+            <p className="text-slate-600">
+              {productSearch.trim()
+                ? "No products match your search."
+                : "No products listed yet. Use Add products to create your first item."}
+            </p>
           )}
         </PageCard>
       ) : null}
@@ -312,13 +341,13 @@ function MessagesInbox({ actions, currentUser }) {
     try {
       const data = await actions.fetchInbox();
       const grouped = (data || []).reduce((acc, msg) => {
-        const myId = currentUser?._id;
-        const senderId = msg.senderId?._id || msg.senderId;
+        const myId = String(currentUser?._id || currentUser?.id || "");
+        const senderId = String(msg.senderId?._id || msg.senderId || "");
 
         // Group by the "other" person
         const isMeSender = senderId === myId;
         const otherPerson = isMeSender ? msg.receiverId : msg.senderId;
-        const otherId = otherPerson?._id || otherPerson;
+        const otherId = String(otherPerson?._id || otherPerson || "");
 
         if (!otherId) return acc;
 
@@ -341,7 +370,7 @@ function MessagesInbox({ actions, currentUser }) {
     } finally {
       setInboxLoading(false);
     }
-  }, [actions, currentUser?._id]);
+  }, [actions, currentUser?._id, currentUser?.id]);
 
   useEffect(() => {
     loadInbox();
@@ -425,7 +454,7 @@ function MessagesInbox({ actions, currentUser }) {
                   <div
                     key={msg._id}
                     className={`max-w-[80%] rounded-xl p-3 ${
-                      (msg.senderId?._id || msg.senderId) === currentUser?._id
+                      String(msg.senderId?._id || msg.senderId || "") === String(currentUser?._id || currentUser?.id || "")
                         ? "ml-auto bg-earth-600 text-white"
                         : "bg-slate-100 text-slate-800"
                     }`}

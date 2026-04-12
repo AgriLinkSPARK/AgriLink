@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AuthPanel from "./components/auth/AuthPanel";
 import BuyerDashboard from "./components/buyer/BuyerDashboard";
 import BuyerStorePage from "./components/buyer/BuyerStorePage";
+import BuyerProductPage from "./components/buyer/BuyerProductPage";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import FarmerDashboard from "./components/farmer/FarmerDashboard";
 import ProductCreatePage from "./components/farmer/ProductCreatePage";
@@ -29,6 +30,7 @@ function App() {
   const [error, setError] = useState("");
   const [buyerState, setBuyerState] = useState(null);
   const [buyerStoreState, setBuyerStoreState] = useState({ loading: false, error: "", store: null, products: [] });
+  const [buyerProductState, setBuyerProductState] = useState({ loading: false, error: "", product: null, reviews: [] });
   const [adminState, setAdminState] = useState(null);
   const [farmerState, setFarmerState] = useState(null);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
@@ -51,8 +53,11 @@ function App() {
   const isFarmerProductCreateRoute = routePath === "/farmer/products/new";
   const farmerProductEditMatch = routePath.match(/^\/farmer\/products\/([^/]+)\/edit$/);
   const buyerStoreMatch = routePath.match(/^\/buyer\/stores\/([^/]+)$/);
+  const buyerStoreProductMatch = routePath.match(/^\/buyer\/stores\/([^/]+)\/products\/([^/]+)$/);
+  const buyerProductMatch = routePath.match(/^\/buyer\/products\/([^/]+)$/);
   const editingProductId = farmerProductEditMatch?.[1] || null;
-  const selectedBuyerStoreId = buyerStoreMatch?.[1] || null;
+  const selectedBuyerStoreId = buyerStoreProductMatch?.[1] || buyerStoreMatch?.[1] || null;
+  const selectedBuyerProductId = buyerStoreProductMatch?.[2] || buyerProductMatch?.[1] || null;
 
   useEffect(() => {
     if (!session) return;
@@ -422,6 +427,47 @@ function App() {
     };
   }, [session?.role, session?.token, selectedBuyerStoreId]);
 
+  useEffect(() => {
+    if (session?.role !== "customer" || !selectedBuyerProductId) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadProductDetails = async () => {
+      setBuyerProductState({ loading: true, error: "", product: null, reviews: [] });
+
+      try {
+        const [productRes, reviewsRes] = await Promise.all([
+          apiRequest(`/products/details/${selectedBuyerProductId}`, { token: session.token }),
+          apiRequest(`/reviews?productId=${selectedBuyerProductId}`, { token: session.token }),
+        ]);
+
+        const product = productRes.data || productRes || null;
+        const reviews = reviewsRes.data || reviewsRes || [];
+
+        if (!ignore) {
+          setBuyerProductState({ loading: false, error: "", product, reviews: Array.isArray(reviews) ? reviews : [] });
+        }
+      } catch (productError) {
+        if (!ignore) {
+          setBuyerProductState({
+            loading: false,
+            error: productError.message || "Failed to load product details",
+            product: null,
+            reviews: [],
+          });
+        }
+      }
+    };
+
+    loadProductDetails();
+
+    return () => {
+      ignore = true;
+    };
+  }, [session?.role, session?.token, selectedBuyerProductId]);
+
   const farmerActions = {
     logout,
     updateStore: async (payload) => {
@@ -614,6 +660,25 @@ function App() {
     );
   }
 
+  if (session?.role === "customer" && buyerState && selectedBuyerProductId) {
+    return (
+      <BuyerProductPage
+        product={buyerProductState.product}
+        reviews={buyerProductState.reviews}
+        loading={buyerProductState.loading}
+        error={buyerProductState.error}
+        onAddToCart={buyerActions.addToCart}
+        onBack={() => {
+          if (buyerStoreProductMatch?.[1]) {
+            navigateTo(`/buyer/stores/${buyerStoreProductMatch[1]}`);
+            return;
+          }
+          navigateTo("/");
+        }}
+      />
+    );
+  }
+
   if (session?.role === "customer" && buyerState && selectedBuyerStoreId) {
     return (
       <BuyerStorePage
@@ -622,6 +687,7 @@ function App() {
         loading={buyerStoreState.loading}
         error={buyerStoreState.error}
         onAddToCart={buyerActions.addToCart}
+        onViewProduct={(productId) => navigateTo(`/buyer/stores/${selectedBuyerStoreId}/products/${productId}`)}
         onBack={() => navigateTo("/")}
       />
     );
@@ -636,6 +702,7 @@ function App() {
         error={error}
         actions={buyerActions}
         onViewStore={(storeId) => navigateTo(`/buyer/stores/${storeId}`)}
+        onViewProduct={(productId) => navigateTo(`/buyer/products/${productId}`)}
       />
     );
   }

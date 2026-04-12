@@ -71,6 +71,12 @@ export const getProductById = asyncHandler(async (req, res) => {
   sendSuccess(res, product);
 });
 
+// Get single product by ID for buyers/customers
+export const getPublicProductById = asyncHandler(async (req, res) => {
+  const product = await productService.getProductById(req.params.id);
+  sendSuccess(res, product);
+});
+
 // Search products inside farmer's store
 export const searchProducts = asyncHandler(async (req, res) => {
   const { keyword } = req.query;

@@ -111,14 +111,18 @@ class AuthService {
 
     // Check for store if farmer
     let hasStore = null;
+    let requiresStoreSetup = false;
     if (user.role === USER_ROLES.FARMER) {
       hasStore = await this.checkUserStore(user._id);
+      requiresStoreSetup = !user.last_log_at;
     }
 
     return {
       token: this.generateToken(user),
       role: user.role,
       hasStore,
+      last_log_at: user.last_log_at,
+      requiresStoreSetup,
     };
   }
 

@@ -2,6 +2,8 @@
   "private": true,
   "scripts": {
     "build": "npm --prefix frontend run build",
+    "vercel:install": "npm --prefix frontend install",
+    "vercel:build": "npm --prefix frontend run build && rm -rf build && cp -R frontend/build build",
     "postinstall": "npm --prefix backend install",
     "start": "npm --prefix backend start",
     "dev": "npm --prefix backend run dev"

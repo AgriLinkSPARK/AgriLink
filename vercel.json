@@ -1,6 +1,6 @@
 {
-  "installCommand": "if [ -f frontend/package.json ]; then npm --prefix frontend install; elif [ -f ../frontend/package.json ]; then npm --prefix ../frontend install; else npm install; fi",
-  "buildCommand": "if [ -f frontend/package.json ]; then npm --prefix frontend run build && rm -rf build && cp -R frontend/build build; elif [ -f ../frontend/package.json ]; then npm --prefix ../frontend run build && rm -rf build && cp -R ../frontend/build build; else npm run build; fi",
+  "installCommand": "npm run vercel:install",
+  "buildCommand": "npm run vercel:build",
   "outputDirectory": "build",
   "rewrites": [
     {

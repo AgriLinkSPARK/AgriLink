@@ -1,0 +1,33 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    - duration: 20
+      arrivalRate: 5
+      name: "Warm-up"
+    - duration: 40
+      arrivalRate: 15
+      name: "Steady load"
+    - duration: 20
+      arrivalRate: 30
+      name: "Spike"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Health and auth pressure"
+    flow:
+      - get:
+          url: "/"
+      - post:
+          url: "/api/auth/login/customer"
+          json:
+            email: "loadtest@example.com"
+            password: "wrong-password"
+
+  - name: "Product list pressure"
+    flow:
+      - get:
+          url: "/api/products/all?page=1&limit=10"
+          headers:
+            Authorization: "Bearer invalid-token"

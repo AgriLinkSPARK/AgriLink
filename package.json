@@ -2,8 +2,8 @@
   "private": true,
   "scripts": {
     "postinstall": "npm --prefix backend install",
-    "start": "npm --prefix backend start",
-    "dev": "npm --prefix backend run dev"
+    "start": "node init && npm --prefix backend start",
+    "dev": "node init && npm --prefix backend run dev"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.1.0",

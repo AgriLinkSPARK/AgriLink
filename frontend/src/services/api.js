@@ -13,12 +13,9 @@ export async function apiRequest(path, { method = "GET", body, token } = {}) {
     ? [process.env.REACT_APP_API_BASE_URL]
     : DEFAULT_BASES;
 
-  let lastError = null;
+  let lastNetworkError = null;
 
-  for (let i = 0; i < baseCandidates.length; i++) {
-    const baseUrl = baseCandidates[i];
-    const isLastAttempt = i === baseCandidates.length - 1;
-    
+  for (const baseUrl of baseCandidates) {
     try {
       console.log(`[API] ${method} ${baseUrl}${path}`, { hasToken: !!token, headerKeys: Object.keys(headers) });
 
@@ -31,31 +28,23 @@ export async function apiRequest(path, { method = "GET", body, token } = {}) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        // For the last base URL, throw the error; otherwise try next URL
-        if (isLastAttempt) {
-          console.error(`[API] Final attempt failed on ${path}:`, response.status, data);
-          throw new Error(data?.message || `Request failed with status ${response.status}`);
-        }
-        lastError = new Error(`HTTP ${response.status}`);
-        console.warn(`[API] Retrying on different base URL. Status: ${response.status}`);
-        continue;
+        console.error(`[API] Error on ${path}:`, response.status, data);
+        throw new Error(data?.message || "Request failed");
       }
 
       return data;
     } catch (error) {
-      // Store error and potentially retry on next base URL
-      if (!isLastAttempt) {
-        lastError = error;
-        console.warn(`[API] Retrying on different base URL. Error: ${error.message}`);
+      // Retry on connection-level failures when multiple base URLs are available.
+      if (error instanceof TypeError && baseCandidates.length > 1) {
+        lastNetworkError = error;
         continue;
       }
-      // On last attempt, throw the error
       throw error;
     }
   }
 
   throw new Error(
-    `Unable to connect to API. Tried: ${baseCandidates.join(", ")}${lastError ? ` (${lastError.message})` : ""}`
+    `Unable to connect to API. Tried: ${baseCandidates.join(", ")}${lastNetworkError ? ` (${lastNetworkError.message})` : ""}`
   );
 }
 

@@ -1,7 +1,7 @@
 {
-  "installCommand": "npm --prefix frontend install",
-  "buildCommand": "npm --prefix frontend run build",
-  "outputDirectory": "frontend/build",
+  "installCommand": "if [ -f frontend/package.json ]; then npm --prefix frontend install; elif [ -f ../frontend/package.json ]; then npm --prefix ../frontend install; else npm install; fi",
+  "buildCommand": "if [ -f frontend/package.json ]; then npm --prefix frontend run build && rm -rf build && cp -R frontend/build build; elif [ -f ../frontend/package.json ]; then npm --prefix ../frontend run build && rm -rf build && cp -R ../frontend/build build; else npm run build; fi",
+  "outputDirectory": "build",
   "rewrites": [
     {
       "source": "/(.*)",

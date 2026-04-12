@@ -5,7 +5,7 @@ function money(value) {
   return `LKR ${Number(value || 0).toFixed(2)}`;
 }
 
-function BuyerStorePage({ store, products, loading, error, onBack, onAddToCart }) {
+function BuyerStorePage({ store, products, loading, error, onBack, onAddToCart, onViewProduct }) {
   const [busyProductId, setBusyProductId] = useState(null);
 
   const totalUnits = useMemo(
@@ -69,7 +69,19 @@ function BuyerStorePage({ store, products, loading, error, onBack, onAddToCart }
         {!loading && !error && (products || []).length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
-              <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4 flex flex-col" key={product._id}>
+              <article
+                className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4 flex flex-col transition hover:shadow-md hover:cursor-pointer"
+                key={product._id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onViewProduct && onViewProduct(product._id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onViewProduct && onViewProduct(product._id);
+                  }
+                }}
+              >
                 {product.mainImage ? (
                   <div className="mb-3 overflow-hidden rounded-xl bg-gray-200 aspect-video">
                     <img
@@ -89,7 +101,8 @@ function BuyerStorePage({ store, products, loading, error, onBack, onAddToCart }
                 <button
                   type="button"
                   className="mt-4 w-full rounded-xl border border-earth-300 bg-white px-3 py-2 text-sm font-semibold text-earth-700 transition hover:bg-earth-600 hover:text-white disabled:opacity-50"
-                  onClick={async () => {
+                  onClick={async (event) => {
+                    event.stopPropagation();
                     setBusyProductId(product._id);
                     try {
                       await onAddToCart(product._id);

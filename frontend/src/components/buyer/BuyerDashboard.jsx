@@ -322,7 +322,7 @@ function TrackDeliverySection({ data, actions }) {
   );
 }
 
-function BuyerDashboard({ data, user, loading, error, actions, onViewStore }) {
+function BuyerDashboard({ data, user, loading, error, actions, onViewStore, onViewProduct }) {
   const [activeSection, setActiveSection] = useState("products");
   const [messageTarget, setMessageTarget] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -461,7 +461,19 @@ function BuyerDashboard({ data, user, loading, error, actions, onViewStore }) {
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {data.products.map((product) => (
-                <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4 flex flex-col" key={product._id}>
+                <article
+                  className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4 flex flex-col transition hover:shadow-md hover:cursor-pointer"
+                  key={product._id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onViewProduct && onViewProduct(product._id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onViewProduct && onViewProduct(product._id);
+                    }
+                  }}
+                >
                   {product.mainImage && (
                     <div className="mb-3 overflow-hidden rounded-xl bg-gray-200 aspect-video">
                       <img 
@@ -484,7 +496,10 @@ function BuyerDashboard({ data, user, loading, error, actions, onViewStore }) {
                   <button
                     type="button"
                     className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    onClick={() => product.store?._id && onViewStore && onViewStore(product.store._id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      product.store?._id && onViewStore && onViewStore(product.store._id);
+                    }}
                     disabled={!product.store?._id}
                   >
                     View Store
@@ -492,7 +507,10 @@ function BuyerDashboard({ data, user, loading, error, actions, onViewStore }) {
                   <button 
                     type="button" 
                     className="mt-4 w-full rounded-xl border border-earth-300 bg-white px-3 py-2 text-sm font-semibold text-earth-700 transition hover:bg-earth-600 hover:text-white disabled:opacity-50" 
-                    onClick={() => handleAddToCart(product._id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleAddToCart(product._id);
+                    }}
                     disabled={isProcessingCart === product._id}
                   >
                     {isProcessingCart === product._id ? "Adding..." : "Add to cart"}

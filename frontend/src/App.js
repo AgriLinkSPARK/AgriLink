@@ -3,6 +3,7 @@ import AuthPanel from "./components/auth/AuthPanel";
 import BuyerDashboard from "./components/buyer/BuyerDashboard";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import FarmerDashboard from "./components/farmer/FarmerDashboard";
+import ProductCreatePage from "./components/farmer/ProductCreatePage";
 import HomePortal from "./components/common/HomePortal";
 import { apiRequest } from "./services/api";
 import { clearSession, loadSession, saveSession } from "./services/session";
@@ -28,6 +29,26 @@ function App() {
   const [buyerState, setBuyerState] = useState(null);
   const [adminState, setAdminState] = useState(null);
   const [farmerState, setFarmerState] = useState(null);
+  const [routePath, setRoutePath] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const syncRoute = () => setRoutePath(window.location.pathname);
+
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, []);
+
+  function navigateTo(path) {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, "", path);
+    }
+
+    setRoutePath(path);
+  }
+
+  const isFarmerProductCreateRoute = routePath === "/farmer/products/new";
+  const farmerProductEditMatch = routePath.match(/^\/farmer\/products\/([^/]+)\/edit$/);
+  const editingProductId = farmerProductEditMatch?.[1] || null;
 
   useEffect(() => {
     if (!session) return;
@@ -43,9 +64,24 @@ function App() {
 
       try {
         if (session.role === "farmer") {
+          if (session.requiresStoreSetup) {
+            const storeRes = await apiRequest("/farmer/store", { token: session.token }).catch(() => ({ data: {} }));
+            const storeData = storeRes.data || storeRes || {};
+
+            setFarmerState({
+              user: { name: session.name || "Farmer", email: session.email || "", role: "farmer" },
+              store: storeData,
+              products: [],
+              orders: [],
+              totalRevenue: 0,
+              greeting: "Set up your store to continue",
+            });
+            return;
+          }
+
           const [dashboard, storeRes] = await Promise.all([
             apiRequest("/auth/dashboard", { token: session.token }),
-            apiRequest("/store", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/farmer/store", { token: session.token }).catch(() => ({ data: {} })),
           ]);
 
           const dashboardData = dashboard.data || {};
@@ -133,6 +169,35 @@ function App() {
     return { name: session.name || "Admin", email: session.email || "" };
   }, [session, buyerState, farmerState]);
 
+  const editingProduct = useMemo(() => {
+    if (!editingProductId || !farmerState?.products?.length) {
+      return null;
+    }
+
+    return farmerState.products.find((product) => String(product._id) === String(editingProductId)) || null;
+  }, [editingProductId, farmerState]);
+
+  function buildProductFormData(payload) {
+    const formData = new FormData();
+    formData.append("name", payload.name);
+    formData.append("category", payload.category);
+    formData.append("description", payload.description || "");
+    formData.append("price", payload.price);
+    formData.append("quantity", payload.quantity);
+    formData.append("unit", payload.unit || "kg");
+    formData.append("harvestDate", payload.harvestDate || "");
+
+    if (payload.mainImage) {
+      formData.append("mainImage", payload.mainImage);
+    }
+
+    (payload.extraImages || []).forEach((file) => {
+      formData.append("extraImages", file);
+    });
+
+    return formData;
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setBusy(true);
@@ -165,12 +230,16 @@ function App() {
         role,
         name: form.name || form.email.split("@")[0],
         email: form.email,
+        requiresStoreSetup: Boolean(authData?.requiresStoreSetup),
       };
 
       saveSession(nextSession);
       setSession(nextSession);
       setAuthOpen(false);
       setForm(role === "admin" ? adminLoginDefaults : buyerLoginDefaults);
+      if (role === "farmer") {
+        navigateTo("/farmer/dashboard");
+      }
     } catch (loginError) {
       setError(loginError.message);
     } finally {
@@ -187,6 +256,7 @@ function App() {
     setAuthOpen(false);
     setForm(mode === "buyer" ? buyerLoginDefaults : mode === "farmer" ? farmerLoginDefaults : adminLoginDefaults);
     setView("login");
+    navigateTo("/");
   }
 
   function openPortal(nextMode) {
@@ -307,9 +377,65 @@ function App() {
   const farmerActions = {
     logout,
     updateStore: async (payload) => {
-      await apiRequest("/store", { method: "PUT", token: session.token, body: payload });
-      const storeRes = await apiRequest("/store", { token: session.token }).catch(() => ({ data: {} }));
-      setFarmerState((current) => ({ ...current, store: storeRes.data || storeRes }));
+      const hasExistingStore = Boolean(farmerState?.store?._id || farmerState?.store?.name);
+
+      if (hasExistingStore) {
+        await apiRequest("/farmer/store", { method: "PUT", token: session.token, body: payload });
+      } else {
+        await apiRequest("/farmer/store", { method: "POST", token: session.token, body: payload });
+      }
+
+      const [dashboardRes, storeRes] = await Promise.all([
+        apiRequest("/auth/dashboard", { token: session.token }).catch(() => ({ data: { user: {} } })),
+        apiRequest("/farmer/store", { token: session.token }).catch(() => ({ data: {} })),
+      ]);
+
+      const dashboardData = dashboardRes.data || {};
+      const storeData = storeRes.data || storeRes || {};
+
+      setFarmerState((current) => ({
+        ...current,
+        user: dashboardData.user || current?.user,
+        store: storeData,
+        products: storeData.products || current?.products || [],
+        orders: dashboardData.orders || current?.orders || [],
+        totalRevenue: dashboardData.totalRevenue || current?.totalRevenue || 0,
+      }));
+
+      setSession((current) => {
+        const updated = { ...current, requiresStoreSetup: false };
+        saveSession(updated);
+        return updated;
+      });
+    },
+    createProduct: async (payload) => {
+      const formData = buildProductFormData(payload);
+      const created = await apiRequest("/products", { method: "POST", token: session.token, body: formData });
+      const productsRes = await apiRequest("/products", { token: session.token });
+      setFarmerState((current) => ({
+        ...current,
+        products: productsRes.data || productsRes || current?.products || [],
+      }));
+      return created;
+    },
+    updateProduct: async (productId, payload) => {
+      const formData = buildProductFormData(payload);
+      const updated = await apiRequest(`/products/${productId}`, { method: "PUT", token: session.token, body: formData });
+      const productsRes = await apiRequest("/products", { token: session.token });
+      setFarmerState((current) => ({
+        ...current,
+        products: productsRes.data || productsRes || current?.products || [],
+      }));
+      return updated;
+    },
+    deleteProduct: async (productId) => {
+      const deleted = await apiRequest(`/products/${productId}`, { method: "DELETE", token: session.token });
+      const productsRes = await apiRequest("/products", { token: session.token });
+      setFarmerState((current) => ({
+        ...current,
+        products: productsRes.data || productsRes || current?.products || [],
+      }));
+      return deleted;
     },
     fetchInbox: async () => {
       const response = await apiRequest("/messages/inbox", { token: session.token });
@@ -410,12 +536,62 @@ function App() {
     },
   };
 
+  const handleCreateProductSubmit = async (payload) => {
+    await farmerActions.createProduct(payload);
+    navigateTo("/farmer/dashboard");
+  };
+
+  const handleUpdateProductSubmit = async (payload) => {
+    if (!editingProduct) {
+      return;
+    }
+
+    await farmerActions.updateProduct(editingProduct._id, payload);
+    navigateTo("/farmer/dashboard");
+  };
+
+  if (session?.role === "farmer" && farmerState && isFarmerProductCreateRoute) {
+    return (
+      <ProductCreatePage
+        loading={busy}
+        error={error}
+        onSubmit={handleCreateProductSubmit}
+        onBack={() => navigateTo("/farmer/dashboard")}
+      />
+    );
+  }
+
+  if (session?.role === "farmer" && farmerState && editingProduct) {
+    return (
+      <ProductCreatePage
+        loading={busy}
+        error={error}
+        initialProduct={editingProduct}
+        mode="edit"
+        onSubmit={handleUpdateProductSubmit}
+        onBack={() => navigateTo("/farmer/dashboard")}
+      />
+    );
+  }
+
   if (session?.role === "customer" && buyerState) {
     return <BuyerDashboard data={buyerState} user={dashboardUser} loading={busy} error={error} actions={buyerActions} />;
   }
 
   if (session?.role === "farmer" && farmerState) {
-    return <FarmerDashboard data={farmerState} user={dashboardUser} loading={busy} error={error} actions={farmerActions} />;
+    return (
+      <FarmerDashboard
+        data={farmerState}
+        user={dashboardUser}
+        loading={busy}
+        error={error}
+        actions={farmerActions}
+        forceStoreSetup={Boolean(session?.requiresStoreSetup)}
+        onAddProduct={() => navigateTo("/farmer/products/new")}
+        onEditProduct={(product) => navigateTo(`/farmer/products/${product._id}/edit`)}
+        onDeleteProduct={(product) => farmerActions.deleteProduct(product._id)}
+      />
+    );
   }
 
   if (session?.role === "admin" && adminState) {

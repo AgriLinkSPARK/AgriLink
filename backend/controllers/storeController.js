@@ -1,4 +1,5 @@
 import Store from "../models/Store.js";
+import User from "../models/User.js";
 
 export const createStore = async (req, res) => {
   try {
@@ -21,9 +22,14 @@ export const createStore = async (req, res) => {
       farmer: req.user.id,
     });
 
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { last_log_at: new Date() } },
+      { new: false }
+    );
+
     res.status(201).json(store);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
     console.error("Create store error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -64,6 +70,12 @@ export const updateStore = async (req, res) => {
     if (phone) store.phone = phone;
 
     const updatedStore = await store.save();
+
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { last_log_at: new Date() } },
+      { new: false }
+    );
 
     res.status(200).json({ success: true, message: "Store updated successfully", store: updatedStore });
   } catch (err) {

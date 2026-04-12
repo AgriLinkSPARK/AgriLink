@@ -115,19 +115,21 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else if (session.role === "customer") {
-            apiRequest("/reviews", { token: session.token }),
+          const [dashboard, cart, orders, productsData, profile, reviews, twoStepPref] = await Promise.all([
+            apiRequest("/auth/dashboard", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/cart", { token: session.token }).catch(() => ({ data: { items: [] } })),
+            apiRequest("/orders/my-orders", { token: session.token }).catch(() => ({ data: [] })),
+            apiRequest("/products/all", { token: session.token }).catch(() => ({ data: { products: [], page: 1, pages: 1 } })),
+            apiRequest("/customer/profile", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/reviews", { token: session.token }).catch(() => ({ data: [] })),
             apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const dashboardData = dashboard.data || {};
-              user: {
-                name: session.name || "Farmer",
-                email: session.email || "",
-                role: "farmer",
-                twoStepEnabled: Boolean(session.twoStepEnabled),
-              },
+          const cartData = cart.data || { items: [] };
           const ordersData = orders.data || orders || [];
           const profileData = profile.data || profile || {};
+          const productsResult = productsData.data || productsData || {};
           const reviewsData = reviews.data || reviews || [];
           const twoStepData = twoStepPref.data || twoStepPref || {};
           const combinedUser = dashboardData.user || profileData.user || profileData;
@@ -135,21 +137,17 @@ function App() {
           setBuyerState({
             user: {
               ...(combinedUser || {}),
-          const [dashboard, storeRes, twoStepPref] = await Promise.all([
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
             },
-            products: productsData.data?.products || productsData.products || [],
-            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
-            productPages: productsData.data?.pages || 1,
+            products: productsResult.products || [],
+            productPage: productsResult.page || 1,
+            productPages: productsResult.pages || 1,
             productFilters: { search: "", category: "all", page: 1 },
             cart: cartData,
             orders: ordersData,
-          const twoStepData = twoStepPref.data || twoStepPref || {};
             reviews: reviewsData,
             cartTotal: (cartData.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
-            user: {
-              ...(dashboardData.user || {}),
-              twoStepEnabled: !!twoStepData.twoStepEnabled,
-            },
+            unpaidOrders: (ordersData || []).filter((order) => order.paymentStatus !== "Paid").length,
             greeting: dashboard.message || "Welcome back",
           });
         } else {

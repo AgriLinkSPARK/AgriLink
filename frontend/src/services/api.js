@@ -1,6 +1,7 @@
 const DEFAULT_BASES = ["http://localhost:5000/api", "http://localhost:8080/api"];
 const API_BASE = process.env.REACT_APP_API_BASE_URL || DEFAULT_BASES[0];
 
+
 export async function apiRequest(path, { method = "GET", body, token } = {}) {
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const headers = {

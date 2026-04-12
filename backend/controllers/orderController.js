@@ -1,5 +1,6 @@
 import Order from "../models/order.js";
 import Cart from "../models/Cart.js";
+import User from "../models/User.js";
 import { sendSuccess, sendCreated } from "../utils/responseHandler.js";
 
 // Checkout → create order from cart
@@ -75,4 +76,56 @@ export const cancelOrder = async (req, res) => {
     console.error(err);
     res.status(500).json({ message: err.message });
   }
-};
+};
+
+// Get all orders (admin only)
+export const getAllOrders = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const totalOrders = await Order.countDocuments();
+    const totalPages = Math.ceil(totalOrders / limit);
+
+    const orders = await Order.find()
+      .populate("buyerId", "name email phone")
+      .populate("items.productId", "name price")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    
+    // Format orders to include customer info
+    const formattedOrders = orders.map(order => ({
+      _id: order._id,
+      buyerId: order.buyerId?._id,
+      customer: {
+        name: order.buyerId?.name || "Unknown",
+        email: order.buyerId?.email || "",
+        phone: order.buyerId?.phone || ""
+      },
+      items: order.items,
+      totalPrice: order.totalPrice,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      shippingAddress: order.shippingAddress || "",
+      createdAt: order.createdAt
+    }));
+    
+    sendSuccess(res, {
+      data: formattedOrders,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalRecords: totalOrders,
+        recordsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    }, "All orders retrieved successfully");
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};

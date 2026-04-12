@@ -22,6 +22,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
   // Logistics state
   const [showCreateLogistics, setShowCreateLogistics] = useState(false);
   const [selectedLogistics, setSelectedLogistics] = useState(null);
+  const [selectedOrderForLogistics, setSelectedOrderForLogistics] = useState(null);
   const [showLogisticsDetails, setShowLogisticsDetails] = useState(false);
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -322,11 +323,17 @@ function AdminDashboard({ data, user, loading, error, actions }) {
           error={error}
           pagination={data.logisticsPagination}
           onPageChange={actions.fetchLogistics}
+          orders={data.orders || []}
+          ordersPagination={data.ordersPagination}
+          onRefreshOrders={actions.fetchOrders}
           onViewDetails={(logistics) => {
             setSelectedLogistics(logistics);
             setShowLogisticsDetails(true);
           }}
-          onCreateLogistics={() => setShowCreateLogistics(true)}
+          onCreateLogistics={(order) => {
+            setSelectedOrderForLogistics(order || null);
+            setShowCreateLogistics(true);
+          }}
           onUpdateStatus={(logistics) => {
             setSelectedLogistics(logistics);
             setShowUpdateStatus(true);
@@ -341,13 +348,20 @@ function AdminDashboard({ data, user, loading, error, actions }) {
       {/* Logistics Modals */}
       <CreateLogistics
         isOpen={showCreateLogistics}
-        onClose={() => setShowCreateLogistics(false)}
+        onClose={() => {
+          setShowCreateLogistics(false);
+          setSelectedOrderForLogistics(null);
+        }}
         onSubmit={async (formData) => {
           await runAdminAction(async () => {
             await actions.createLogistics(formData);
+            // Refresh both logistics and orders after creation
+            await actions.fetchLogistics();
+            await actions.fetchOrders();
           }, "Logistics record created successfully");
+          setSelectedOrderForLogistics(null);
         }}
-        orders={data.orders || []}
+        prefillOrder={selectedOrderForLogistics}
       />
 
       <LogisticsDetails

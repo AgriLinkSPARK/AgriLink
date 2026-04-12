@@ -3,7 +3,22 @@ import asyncHandler from "../middleware/asyncHandler.js";
 
 // SEND
 export const sendMessage = asyncHandler(async (req, res) => {
-  const message = await Message.create(req.body);
+  const senderId = req.user?.id;
+  const { receiverId, messageText } = req.body || {};
+
+  if (!senderId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (!receiverId || !messageText || !String(messageText).trim()) {
+    return res.status(400).json({ message: "receiverId and messageText are required" });
+  }
+
+  const message = await Message.create({
+    senderId,
+    receiverId,
+    messageText: String(messageText).trim(),
+  });
   res.status(201).json(message);
 });
 
@@ -23,7 +38,11 @@ export const getConversation = asyncHandler(async (req, res) => {
 
 // GET INBOX (all messages involving user)
 export const getInbox = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
   const messages = await Message.find({
     $or: [{ senderId: userId }, { receiverId: userId }]

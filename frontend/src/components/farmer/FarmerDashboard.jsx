@@ -8,8 +8,10 @@ function money(value) {
 }
 
 function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup = false, onAddProduct, onEditProduct }) {
-  const [activeSection, setActiveSection] = useState("products");
-  const [isStoreEditorOpen, setIsStoreEditorOpen] = useState(forceStoreSetup);
+  const [activeSection, setActiveSection] = useState("store");
+  const [isStoreEditorOpen, setIsStoreEditorOpen] = useState(false);
+  const [isSavingTwoStep, setIsSavingTwoStep] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
   const [productToDelete, setProductToDelete] = useState(null);
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
@@ -19,6 +21,22 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
     { label: "Orders", value: String(data.orders?.length || 0), note: "Received from buyers" },
     { label: "Revenue", value: money(data.totalRevenue || 0), note: "Sales so far" },
   ], [data.store?.name, data.products?.length, data.orders?.length, data.totalRevenue]);
+
+  const filteredProducts = useMemo(() => {
+    const products = Array.isArray(data.products) ? data.products : [];
+    const query = productSearch.trim().toLowerCase();
+
+    if (!query) {
+      return products;
+    }
+
+    return products.filter((product) => {
+      const name = String(product?.name || "").toLowerCase();
+      const category = String(product?.category || "").toLowerCase();
+      const description = String(product?.description || "").toLowerCase();
+      return name.includes(query) || category.includes(query) || description.includes(query);
+    });
+  }, [data.products, productSearch]);
 
   if (forceStoreSetup || isStoreEditorOpen) {
     return (
@@ -138,9 +156,19 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
             </button>
           }
         >
-          {data.products && data.products.length > 0 ? (
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search my products by name, category, or description"
+              value={productSearch}
+              onChange={(event) => setProductSearch(event.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200"
+            />
+          </div>
+
+          {filteredProducts && filteredProducts.length > 0 ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {data.products.map((product) => (
+              {filteredProducts.map((product) => (
                 <article
                   key={product._id}
                   role="button"
@@ -203,7 +231,11 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
               ))}
             </div>
           ) : (
-            <p className="text-slate-600">No products listed yet. Use Add products to create your first item.</p>
+            <p className="text-slate-600">
+              {productSearch.trim()
+                ? "No products match your search."
+                : "No products listed yet. Use Add products to create your first item."}
+            </p>
           )}
         </PageCard>
       ) : null}
@@ -248,6 +280,30 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Role</p>
               <p className="text-lg font-semibold text-slate-900">Farmer</p>
+            </div>
+            <div className="mt-2 rounded-xl border border-earth-200 bg-earth-50/50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">2-Step Verification</p>
+                  <p className="text-xs text-slate-600">Require OTP verification by email for login.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSavingTwoStep}
+                  onClick={async () => {
+                    const nextValue = !data.user?.twoStepEnabled;
+                    setIsSavingTwoStep(true);
+                    try {
+                      await actions.updateTwoStepPreference(nextValue);
+                    } finally {
+                      setIsSavingTwoStep(false);
+                    }
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${data.user?.twoStepEnabled ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-700 text-white hover:bg-slate-800"} disabled:cursor-not-allowed disabled:opacity-70`}
+                >
+                  {isSavingTwoStep ? "Saving..." : data.user?.twoStepEnabled ? "On" : "Off"}
+                </button>
+              </div>
             </div>
           </div>
         </PageCard>
@@ -312,13 +368,13 @@ function MessagesInbox({ actions, currentUser }) {
     try {
       const data = await actions.fetchInbox();
       const grouped = (data || []).reduce((acc, msg) => {
-        const myId = currentUser?._id;
-        const senderId = msg.senderId?._id || msg.senderId;
+        const myId = String(currentUser?._id || currentUser?.id || "");
+        const senderId = String(msg.senderId?._id || msg.senderId || "");
 
         // Group by the "other" person
         const isMeSender = senderId === myId;
         const otherPerson = isMeSender ? msg.receiverId : msg.senderId;
-        const otherId = otherPerson?._id || otherPerson;
+        const otherId = String(otherPerson?._id || otherPerson || "");
 
         if (!otherId) return acc;
 
@@ -341,7 +397,7 @@ function MessagesInbox({ actions, currentUser }) {
     } finally {
       setInboxLoading(false);
     }
-  }, [actions, currentUser?._id]);
+  }, [actions, currentUser?._id, currentUser?.id]);
 
   useEffect(() => {
     loadInbox();
@@ -425,7 +481,7 @@ function MessagesInbox({ actions, currentUser }) {
                   <div
                     key={msg._id}
                     className={`max-w-[80%] rounded-xl p-3 ${
-                      (msg.senderId?._id || msg.senderId) === currentUser?._id
+                      String(msg.senderId?._id || msg.senderId || "") === String(currentUser?._id || currentUser?.id || "")
                         ? "ml-auto bg-earth-600 text-white"
                         : "bg-slate-100 text-slate-800"
                     }`}

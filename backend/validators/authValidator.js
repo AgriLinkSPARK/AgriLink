@@ -53,3 +53,50 @@ export const validateLoginData = (req, res, next) => {
 
   next();
 };
+
+/**
+ * Validate 2-step OTP send data
+ */
+export const validateSendOtpData = (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new AppError(ERROR_MESSAGES.ALL_FIELDS_REQUIRED, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (!isValidEmail(email)) {
+    throw new AppError("Invalid email format", HTTP_STATUS.BAD_REQUEST);
+  }
+
+  next();
+};
+
+/**
+ * Validate 2-step OTP verify data
+ */
+export const validateVerifyOtpData = (req, res, next) => {
+  const { otpSessionId, otp } = req.body;
+
+  if (!otpSessionId || !otp) {
+    throw new AppError(ERROR_MESSAGES.ALL_FIELDS_REQUIRED, HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (!/^\d{6}$/.test(String(otp))) {
+    throw new AppError("OTP must be a 6-digit code", HTTP_STATUS.BAD_REQUEST);
+  }
+
+  next();
+};
+
+/**
+ * Validate 2-step preference update payload
+ */
+export const validateTwoStepPreferenceData = (req, res, next) => {
+  const { enabled } = req.body;
+
+  if (typeof enabled !== "boolean") {
+    throw new AppError("enabled must be a boolean", HTTP_STATUS.BAD_REQUEST);
+  }
+
+  next();
+};

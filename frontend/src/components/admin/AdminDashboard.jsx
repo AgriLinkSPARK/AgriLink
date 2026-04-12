@@ -26,6 +26,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
   const [showLogisticsDetails, setShowLogisticsDetails] = useState(false);
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isSavingTwoStep, setIsSavingTwoStep] = useState(false);
 
   const filteredUsers = useMemo(() => {
     return data.users.filter((entry) => {
@@ -97,6 +98,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
             { id: "users", label: "Users" },
             { id: "logistics", label: "Logistics" },
             { id: "products", label: "Products" },
+            { id: "profile", label: "Profile" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -418,6 +420,45 @@ function AdminDashboard({ data, user, loading, error, actions }) {
                 <p className="mt-1 text-sm text-slate-600">{product.category} • {product.availability}</p>
               </article>
             ))}
+          </div>
+        </PageCard>
+      ) : null}
+
+      {activeSection === "profile" ? (
+        <PageCard title="Admin Profile" subtitle="Account settings and security preferences.">
+          <div className="grid max-w-lg gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Name</p>
+              <p className="text-lg font-semibold text-slate-900">{user?.name || "Admin"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Email</p>
+              <p className="text-lg font-semibold text-slate-900">{user?.email || "admin@agrilink.com"}</p>
+            </div>
+            <div className="mt-2 rounded-xl border border-earth-200 bg-earth-50/50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">2-Step Verification</p>
+                  <p className="text-xs text-slate-600">Require OTP verification by email for login.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSavingTwoStep}
+                  onClick={async () => {
+                    const nextValue = !user?.twoStepEnabled;
+                    setIsSavingTwoStep(true);
+                    try {
+                      await actions.updateTwoStepPreference(nextValue);
+                    } finally {
+                      setIsSavingTwoStep(false);
+                    }
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${user?.twoStepEnabled ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-700 text-white hover:bg-slate-800"} disabled:cursor-not-allowed disabled:opacity-70`}
+                >
+                  {isSavingTwoStep ? "Saving..." : user?.twoStepEnabled ? "On" : "Off"}
+                </button>
+              </div>
+            </div>
           </div>
         </PageCard>
       ) : null}

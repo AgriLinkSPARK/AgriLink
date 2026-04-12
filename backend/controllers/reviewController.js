@@ -9,7 +9,14 @@ export const createReview = asyncHandler(async (req, res) => {
 
 // GET ALL
 export const getAllReviews = asyncHandler(async (req, res) => {
-  const reviews = await Review.find();
+  const query = {};
+  if (req.query?.productId) {
+    query.productId = req.query.productId;
+  }
+
+  const reviews = await Review.find(query)
+    .populate("buyerId", "name")
+    .sort({ createdAt: -1 });
   res.json(reviews);
 });
 

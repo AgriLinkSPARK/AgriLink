@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import AuthPanel from "./components/auth/AuthPanel";
 import BuyerDashboard from "./components/buyer/BuyerDashboard";
+import BuyerStorePage from "./components/buyer/BuyerStorePage";
+import BuyerProductPage from "./components/buyer/BuyerProductPage";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import FarmerDashboard from "./components/farmer/FarmerDashboard";
 import ProductCreatePage from "./components/farmer/ProductCreatePage";
@@ -27,6 +29,8 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [buyerState, setBuyerState] = useState(null);
+  const [buyerStoreState, setBuyerStoreState] = useState({ loading: false, error: "", store: null, products: [] });
+  const [buyerProductState, setBuyerProductState] = useState({ loading: false, error: "", product: null, reviews: [] });
   const [adminState, setAdminState] = useState(null);
   const [farmerState, setFarmerState] = useState(null);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
@@ -48,7 +52,12 @@ function App() {
 
   const isFarmerProductCreateRoute = routePath === "/farmer/products/new";
   const farmerProductEditMatch = routePath.match(/^\/farmer\/products\/([^/]+)\/edit$/);
+  const buyerStoreMatch = routePath.match(/^\/buyer\/stores\/([^/]+)$/);
+  const buyerStoreProductMatch = routePath.match(/^\/buyer\/stores\/([^/]+)\/products\/([^/]+)$/);
+  const buyerProductMatch = routePath.match(/^\/buyer\/products\/([^/]+)$/);
   const editingProductId = farmerProductEditMatch?.[1] || null;
+  const selectedBuyerStoreId = buyerStoreProductMatch?.[1] || buyerStoreMatch?.[1] || null;
+  const selectedBuyerProductId = buyerStoreProductMatch?.[2] || buyerProductMatch?.[1] || null;
 
   useEffect(() => {
     if (!session) return;
@@ -69,7 +78,12 @@ function App() {
             const storeData = storeRes.data || storeRes || {};
 
             setFarmerState({
-              user: { name: session.name || "Farmer", email: session.email || "", role: "farmer" },
+              user: {
+                name: session.name || "Farmer",
+                email: session.email || "",
+                role: "farmer",
+                twoStepEnabled: Boolean(session.twoStepEnabled),
+              },
               store: storeData,
               products: [],
               orders: [],
@@ -79,16 +93,21 @@ function App() {
             return;
           }
 
-          const [dashboard, storeRes] = await Promise.all([
+          const [dashboard, storeRes, twoStepPref] = await Promise.all([
             apiRequest("/auth/dashboard", { token: session.token }),
             apiRequest("/farmer/store", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const dashboardData = dashboard.data || {};
           const storeData = storeRes.data || storeRes || {};
+          const twoStepData = twoStepPref.data || twoStepPref || {};
 
           setFarmerState({
-            user: dashboardData.user,
+            user: {
+              ...(dashboardData.user || {}),
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             store: storeData,
             products: storeData.products || [],
             orders: dashboardData.orders || [],
@@ -96,40 +115,48 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else if (session.role === "customer") {
-          const [dashboard, productsData, cart, orders, profile, reviews] = await Promise.all([
-            apiRequest("/customer/dashboard", { token: session.token }),
-            apiRequest("/products/all", { token: session.token }),
-            apiRequest("/cart", { token: session.token }),
-            apiRequest("/orders/my-orders", { token: session.token }),
-            apiRequest("/customer/profile", { token: session.token }),
-            apiRequest("/reviews", { token: session.token }),
+          const [dashboard, cart, orders, productsData, profile, reviews, twoStepPref] = await Promise.all([
+            apiRequest("/auth/dashboard", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/cart", { token: session.token }).catch(() => ({ data: { items: [] } })),
+            apiRequest("/orders/my-orders", { token: session.token }).catch(() => ({ data: [] })),
+            apiRequest("/products/all", { token: session.token }).catch(() => ({ data: { products: [], page: 1, pages: 1 } })),
+            apiRequest("/customer/profile", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/reviews", { token: session.token }).catch(() => ({ data: [] })),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const dashboardData = dashboard.data || {};
-          const cartData = cart.data || cart || { items: [] };
+          const cartData = cart.data || { items: [] };
           const ordersData = orders.data || orders || [];
           const profileData = profile.data || profile || {};
+          const productsResult = productsData.data || productsData || {};
           const reviewsData = reviews.data || reviews || [];
+          const twoStepData = twoStepPref.data || twoStepPref || {};
+          const combinedUser = dashboardData.user || profileData.user || profileData;
 
           setBuyerState({
-            user: dashboardData.user || profileData.user || profileData,
-            products: productsData.data?.products || productsData.products || [],
-            productPage: productsData.data?.page || 1,
-            productPages: productsData.data?.pages || 1,
+            user: {
+              ...(combinedUser || {}),
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
+            products: productsResult.products || [],
+            productPage: productsResult.page || 1,
+            productPages: productsResult.pages || 1,
             productFilters: { search: "", category: "all", page: 1 },
             cart: cartData,
             orders: ordersData,
             reviews: reviewsData,
             cartTotal: (cartData.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
-            unpaidOrders: ordersData.filter((order) => order.paymentStatus !== "Paid" && order.status !== "Cancelled").length,
+            unpaidOrders: (ordersData || []).filter((order) => order.paymentStatus !== "Paid").length,
             greeting: dashboard.message || "Welcome back",
           });
         } else {
-          const [usersRes, productsRes, logisticsRes, ordersRes] = await Promise.all([
+          const [usersRes, productsRes, logisticsRes, ordersRes, twoStepPref] = await Promise.all([
             apiRequest("/admin/users", { token: session.token }),
             apiRequest("/products/all", { token: session.token }),
             apiRequest("/logistics", { token: session.token }),
             apiRequest("/orders/all", { token: session.token }),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const usersData = usersRes.users || usersRes.data || [];
@@ -138,8 +165,14 @@ function App() {
           const logisticsPagination = logisticsRes.pagination || null;
           const ordersData = ordersRes.data?.data || ordersRes.data || ordersRes || [];
           const ordersPagination = ordersRes.data?.pagination || null;
+          const twoStepData = twoStepPref.data || twoStepPref || {};
 
           setAdminState({
+            user: {
+              name: session.name || "Admin",
+              email: session.email || "",
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             users: usersData,
             products: productsData,
             logistics: logisticsData,
@@ -166,8 +199,8 @@ function App() {
     if (!session) return null;
     if (session.role === "customer") return buyerState?.user;
     if (session.role === "farmer") return farmerState?.user || { name: session.name || "Farmer", email: session.email || "" };
-    return { name: session.name || "Admin", email: session.email || "" };
-  }, [session, buyerState, farmerState]);
+    return adminState?.user || { name: session.name || "Admin", email: session.email || "", twoStepEnabled: false };
+  }, [session, buyerState, farmerState, adminState]);
 
   const editingProduct = useMemo(() => {
     if (!editingProductId || !farmerState?.products?.length) {
@@ -218,8 +251,27 @@ function App() {
       }
 
       const authData = response.data || response;
-      const token = authData?.token || response?.token;
-      const role = authData?.role || response?.role || (mode === "buyer" ? "customer" : mode === "farmer" ? "farmer" : "admin");
+
+      if (authData?.requiresTwoStep && authData?.otpSessionId) {
+        const otpInput = window.prompt("Enter the 6-digit OTP sent to your email");
+        if (!otpInput) {
+          throw new Error("OTP verification cancelled.");
+        }
+
+        const verified = await apiRequest("/auth/login/2step/verify-otp", {
+          method: "POST",
+          body: {
+            otpSessionId: authData.otpSessionId,
+            otp: otpInput.trim(),
+          },
+        });
+
+        response = verified;
+      }
+
+      const finalAuthData = response?.data || response || authData;
+      const token = finalAuthData?.token;
+      const role = finalAuthData?.role || (mode === "buyer" ? "customer" : mode === "farmer" ? "farmer" : "admin");
 
       if (!token) {
         throw new Error("No token received from server. Response: " + JSON.stringify(response));
@@ -230,7 +282,8 @@ function App() {
         role,
         name: form.name || form.email.split("@")[0],
         email: form.email,
-        requiresStoreSetup: Boolean(authData?.requiresStoreSetup),
+        requiresStoreSetup: Boolean(finalAuthData?.requiresStoreSetup),
+        twoStepEnabled: Boolean(finalAuthData?.twoStepEnabled),
       };
 
       saveSession(nextSession);
@@ -343,6 +396,22 @@ function App() {
       const profile = await apiRequest("/customer/profile", { token: session.token });
       setBuyerState((current) => ({ ...current, user: profile.user }));
     },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setBuyerState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
+    },
     setProductFilters: async (newFilters) => {
       setBuyerState(current => {
         const updatedFilters = { ...current.productFilters, ...newFilters };
@@ -373,6 +442,96 @@ function App() {
       return response.data || response;
     },
   };
+
+  useEffect(() => {
+    if (session?.role !== "customer" || !selectedBuyerStoreId) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadStoreData = async () => {
+      setBuyerStoreState({ loading: true, error: "", store: null, products: [] });
+
+      try {
+        let page = 1;
+        let pages = 1;
+        const products = [];
+
+        do {
+          const response = await apiRequest(`/products/all?storeId=${selectedBuyerStoreId}&page=${page}&limit=30`, {
+            token: session.token,
+          });
+          const result = response.data || response || {};
+          products.push(...(result.products || []));
+          pages = Number(result.pages || 1);
+          page += 1;
+        } while (page <= pages);
+
+        const store = products[0]?.store || null;
+
+        if (!ignore) {
+          setBuyerStoreState({ loading: false, error: "", store, products });
+        }
+      } catch (storeError) {
+        if (!ignore) {
+          setBuyerStoreState({
+            loading: false,
+            error: storeError.message || "Failed to load store products",
+            store: null,
+            products: [],
+          });
+        }
+      }
+    };
+
+    loadStoreData();
+
+    return () => {
+      ignore = true;
+    };
+  }, [session?.role, session?.token, selectedBuyerStoreId]);
+
+  useEffect(() => {
+    if (session?.role !== "customer" || !selectedBuyerProductId) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadProductDetails = async () => {
+      setBuyerProductState({ loading: true, error: "", product: null, reviews: [] });
+
+      try {
+        const [productRes, reviewsRes] = await Promise.all([
+          apiRequest(`/products/details/${selectedBuyerProductId}`, { token: session.token }),
+          apiRequest(`/reviews?productId=${selectedBuyerProductId}`, { token: session.token }),
+        ]);
+
+        const product = productRes.data || productRes || null;
+        const reviews = reviewsRes.data || reviewsRes || [];
+
+        if (!ignore) {
+          setBuyerProductState({ loading: false, error: "", product, reviews: Array.isArray(reviews) ? reviews : [] });
+        }
+      } catch (productError) {
+        if (!ignore) {
+          setBuyerProductState({
+            loading: false,
+            error: productError.message || "Failed to load product details",
+            product: null,
+            reviews: [],
+          });
+        }
+      }
+    };
+
+    loadProductDetails();
+
+    return () => {
+      ignore = true;
+    };
+  }, [session?.role, session?.token, selectedBuyerProductId]);
 
   const farmerActions = {
     logout,
@@ -440,6 +599,22 @@ function App() {
     fetchInbox: async () => {
       const response = await apiRequest("/messages/inbox", { token: session.token });
       return response.data || response;
+    },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setFarmerState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
     },
   };
 
@@ -534,6 +709,22 @@ function App() {
         logisticsPagination: logisticsRes.pagination || null,
       }));
     },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setAdminState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
+    },
   };
 
   const handleCreateProductSubmit = async (payload) => {
@@ -574,8 +765,51 @@ function App() {
     );
   }
 
+  if (session?.role === "customer" && buyerState && selectedBuyerProductId) {
+    return (
+      <BuyerProductPage
+        product={buyerProductState.product}
+        reviews={buyerProductState.reviews}
+        loading={buyerProductState.loading}
+        error={buyerProductState.error}
+        onAddToCart={buyerActions.addToCart}
+        onBack={() => {
+          if (buyerStoreProductMatch?.[1]) {
+            navigateTo(`/buyer/stores/${buyerStoreProductMatch[1]}`);
+            return;
+          }
+          navigateTo("/");
+        }}
+      />
+    );
+  }
+
+  if (session?.role === "customer" && buyerState && selectedBuyerStoreId) {
+    return (
+      <BuyerStorePage
+        store={buyerStoreState.store}
+        products={buyerStoreState.products}
+        loading={buyerStoreState.loading}
+        error={buyerStoreState.error}
+        onAddToCart={buyerActions.addToCart}
+        onViewProduct={(productId) => navigateTo(`/buyer/stores/${selectedBuyerStoreId}/products/${productId}`)}
+        onBack={() => navigateTo("/")}
+      />
+    );
+  }
+
   if (session?.role === "customer" && buyerState) {
-    return <BuyerDashboard data={buyerState} user={dashboardUser} loading={busy} error={error} actions={buyerActions} />;
+    return (
+      <BuyerDashboard
+        data={buyerState}
+        user={dashboardUser}
+        loading={busy}
+        error={error}
+        actions={buyerActions}
+        onViewStore={(storeId) => navigateTo(`/buyer/stores/${storeId}`)}
+        onViewProduct={(productId) => navigateTo(`/buyer/products/${productId}`)}
+      />
+    );
   }
 
   if (session?.role === "farmer" && farmerState) {

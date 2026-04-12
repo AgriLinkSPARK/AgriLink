@@ -9,13 +9,11 @@ function money(value) {
 
 function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup = false, onAddProduct, onEditProduct }) {
   const [activeSection, setActiveSection] = useState("store");
+  const [isStoreEditorOpen, setIsStoreEditorOpen] = useState(false);
   const [isSavingTwoStep, setIsSavingTwoStep] = useState(false);
-  const [storeForm, setStoreForm] = useState({
-    name: data.store?.name || "",
-    description: data.store?.description || "",
-    location: data.store?.location || "",
-    phone: data.store?.phone || "",
-  });
+  const [productSearch, setProductSearch] = useState("");
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   const stats = useMemo(() => [
     { label: "Store", value: data.store?.name || "My Store", note: "Farm marketplace" },
@@ -24,15 +22,31 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
     { label: "Revenue", value: money(data.totalRevenue || 0), note: "Sales so far" },
   ], [data.store?.name, data.products?.length, data.orders?.length, data.totalRevenue]);
 
-  if (forceStoreSetup) {
+  const filteredProducts = useMemo(() => {
+    const products = Array.isArray(data.products) ? data.products : [];
+    const query = productSearch.trim().toLowerCase();
+
+    if (!query) {
+      return products;
+    }
+
+    return products.filter((product) => {
+      const name = String(product?.name || "").toLowerCase();
+      const category = String(product?.category || "").toLowerCase();
+      const description = String(product?.description || "").toLowerCase();
+      return name.includes(query) || category.includes(query) || description.includes(query);
+    });
+  }, [data.products, productSearch]);
+
+  if (forceStoreSetup || isStoreEditorOpen) {
     return (
       <StoreUpdatePage
         initialStore={data.store}
         loading={loading}
         error={error}
         onSubmit={actions.updateStore}
-        onBack={null}
-        isSetupMode
+        onBack={forceStoreSetup ? null : () => setIsStoreEditorOpen(false)}
+        isSetupMode={forceStoreSetup}
       />
     );
   }

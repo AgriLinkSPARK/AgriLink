@@ -8,6 +8,7 @@ function money(value) {
 
 function FarmerDashboard({ data, user, loading, error, actions }) {
   const [activeSection, setActiveSection] = useState("store");
+  const [isSavingTwoStep, setIsSavingTwoStep] = useState(false);
   const [storeForm, setStoreForm] = useState({
     name: data.store?.name || "",
     description: data.store?.description || "",
@@ -169,6 +170,30 @@ function FarmerDashboard({ data, user, loading, error, actions }) {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Role</p>
               <p className="text-lg font-semibold text-slate-900">Farmer</p>
+            </div>
+            <div className="mt-2 rounded-xl border border-earth-200 bg-earth-50/50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">2-Step Verification</p>
+                  <p className="text-xs text-slate-600">Require OTP verification by email for login.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSavingTwoStep}
+                  onClick={async () => {
+                    const nextValue = !data.user?.twoStepEnabled;
+                    setIsSavingTwoStep(true);
+                    try {
+                      await actions.updateTwoStepPreference(nextValue);
+                    } finally {
+                      setIsSavingTwoStep(false);
+                    }
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${data.user?.twoStepEnabled ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-700 text-white hover:bg-slate-800"} disabled:cursor-not-allowed disabled:opacity-70`}
+                >
+                  {isSavingTwoStep ? "Saving..." : data.user?.twoStepEnabled ? "On" : "Off"}
+                </button>
+              </div>
             </div>
           </div>
         </PageCard>

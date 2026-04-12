@@ -75,6 +75,13 @@ class EmailService {
   async sendPasswordChanged(email, name) {
     return this.sendEmailSafely(mailer.sendPasswordChangedEmail, email, name);
   }
+
+  /**
+   * Send login OTP email
+   */
+  async sendLoginOTP(email, name, otp) {
+    return this.sendEmailSafely(mailer.sendLoginOTPEmail, email, name, otp);
+  }
 }
 
 // Export singleton instance

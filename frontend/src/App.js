@@ -43,16 +43,21 @@ function App() {
 
       try {
         if (session.role === "farmer") {
-          const [dashboard, storeRes] = await Promise.all([
+          const [dashboard, storeRes, twoStepPref] = await Promise.all([
             apiRequest("/auth/dashboard", { token: session.token }),
             apiRequest("/store", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const dashboardData = dashboard.data || {};
           const storeData = storeRes.data || storeRes || {};
+          const twoStepData = twoStepPref.data || twoStepPref || {};
 
           setFarmerState({
-            user: dashboardData.user,
+            user: {
+              ...(dashboardData.user || {}),
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             store: storeData,
             products: storeData.products || [],
             orders: dashboardData.orders || [],
@@ -60,13 +65,14 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else if (session.role === "customer") {
-          const [dashboard, productsData, cart, orders, profile, reviews] = await Promise.all([
+          const [dashboard, productsData, cart, orders, profile, reviews, twoStepPref] = await Promise.all([
             apiRequest("/customer/dashboard", { token: session.token }),
             apiRequest("/products/all", { token: session.token }),
             apiRequest("/cart", { token: session.token }),
             apiRequest("/orders/my-orders", { token: session.token }),
             apiRequest("/customer/profile", { token: session.token }),
             apiRequest("/reviews", { token: session.token }),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const dashboardData = dashboard.data || {};
@@ -74,9 +80,14 @@ function App() {
           const ordersData = orders.data || orders || [];
           const profileData = profile.data || profile || {};
           const reviewsData = reviews.data || reviews || [];
+          const twoStepData = twoStepPref.data || twoStepPref || {};
+          const combinedUser = dashboardData.user || profileData.user || profileData;
 
           setBuyerState({
-            user: dashboardData.user || profileData.user || profileData,
+            user: {
+              ...(combinedUser || {}),
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             products: productsData.data?.products || productsData.products || [],
             productPage: productsData.data?.page || 1,
             productPages: productsData.data?.pages || 1,
@@ -89,18 +100,25 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else {
-          const [usersRes, productsRes, logisticsRes] = await Promise.all([
+          const [usersRes, productsRes, logisticsRes, twoStepPref] = await Promise.all([
             apiRequest("/admin/users", { token: session.token }),
             apiRequest("/products/all", { token: session.token }),
             apiRequest("/logistics", { token: session.token }),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const usersData = usersRes.users || usersRes.data || [];
           const productsData = productsRes.data || [];
           const logisticsData = logisticsRes.data || [];
           const logisticsPagination = logisticsRes.pagination || null;
+          const twoStepData = twoStepPref.data || twoStepPref || {};
 
           setAdminState({
+            user: {
+              name: session.name || "Admin",
+              email: session.email || "",
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             users: usersData,
             products: productsData,
             logistics: logisticsData,
@@ -125,8 +143,8 @@ function App() {
     if (!session) return null;
     if (session.role === "customer") return buyerState?.user;
     if (session.role === "farmer") return farmerState?.user || { name: session.name || "Farmer", email: session.email || "" };
-    return { name: session.name || "Admin", email: session.email || "" };
-  }, [session, buyerState, farmerState]);
+    return adminState?.user || { name: session.name || "Admin", email: session.email || "", twoStepEnabled: false };
+  }, [session, buyerState, farmerState, adminState]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -148,8 +166,27 @@ function App() {
       }
 
       const authData = response.data || response;
-      const token = authData?.token || response?.token;
-      const role = authData?.role || response?.role || (mode === "buyer" ? "customer" : mode === "farmer" ? "farmer" : "admin");
+
+      if (authData?.requiresTwoStep && authData?.otpSessionId) {
+        const otpInput = window.prompt("Enter the 6-digit OTP sent to your email");
+        if (!otpInput) {
+          throw new Error("OTP verification cancelled.");
+        }
+
+        const verified = await apiRequest("/auth/login/2step/verify-otp", {
+          method: "POST",
+          body: {
+            otpSessionId: authData.otpSessionId,
+            otp: otpInput.trim(),
+          },
+        });
+
+        response = verified;
+      }
+
+      const finalAuthData = response?.data || response || authData;
+      const token = finalAuthData?.token;
+      const role = finalAuthData?.role || (mode === "buyer" ? "customer" : mode === "farmer" ? "farmer" : "admin");
 
       if (!token) {
         throw new Error("No token received from server. Response: " + JSON.stringify(response));
@@ -268,6 +305,22 @@ function App() {
       const profile = await apiRequest("/customer/profile", { token: session.token });
       setBuyerState((current) => ({ ...current, user: profile.user }));
     },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setBuyerState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
+    },
     setProductFilters: async (newFilters) => {
       setBuyerState(current => {
         const updatedFilters = { ...current.productFilters, ...newFilters };
@@ -309,6 +362,22 @@ function App() {
     fetchInbox: async () => {
       const response = await apiRequest("/messages/inbox", { token: session.token });
       return response.data || response;
+    },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setFarmerState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
     },
   };
 
@@ -394,6 +463,22 @@ function App() {
         logistics: logisticsRes.data || logisticsRes || [],
         logisticsPagination: logisticsRes.pagination || null,
       }));
+    },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setAdminState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
     },
   };
 

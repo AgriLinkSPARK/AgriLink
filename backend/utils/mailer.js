@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { BrevoClient } from "@getbrevo/brevo";
+import nodemailer from "nodemailer";
 
 // Polyfill fetch for Node.js v16
 if (!globalThis.fetch) {
@@ -7,6 +8,7 @@ if (!globalThis.fetch) {
 }
 
 let brevoClient = null;
+let smtpTransporter = null;
 
 function getBrevoClient() {
   if (!brevoClient) {
@@ -15,6 +17,29 @@ function getBrevoClient() {
     });
   }
   return brevoClient;
+}
+
+function hasSmtpConfig() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function getSmtpTransporter() {
+  if (!smtpTransporter) {
+    const port = Number(process.env.SMTP_PORT || 587);
+    const secure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
+
+    smtpTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+
+  return smtpTransporter;
 }
 
 function getFromAddress() {
@@ -31,41 +56,60 @@ function isValidEmail(email) {
 }
 
 async function sendMail({ to, subject, text, html }) {
-  try {
-    if (!process.env.BREVO_API_KEY) {
-      throw new Error("BREVO_API_KEY is not configured");
-    }
-
-    // Validate email format
-    if (!to || !isValidEmail(to)) {
-      throw new Error(`Invalid email address: ${to}`);
-    }
-
-    const client = getBrevoClient();
-    const fromAddress = getFromAddress();
-    
-    console.log(`📧 Attempting to send email to: ${to}`);
-    
-    const emailData = {
-      sender: fromAddress,
-      to: [{ email: to }],
-      subject: subject,
-      textContent: text,
-      htmlContent: html,
-    };
-
-    const info = await client.transactionalEmails.sendTransacEmail(emailData);
-    console.log("✅ Email sent successfully:", info.messageId);
-    console.log("📨 Response:", info);
-    return info;
-  } catch (err) {
-    console.error("❌ Error sending email to:", to);
-    console.error("❌ Error message:", err.message);
-    if (err.body) {
-      console.error("❌ Brevo error details:", err.body);
-    }
-    throw err;
+  // Validate email format before attempting any provider.
+  if (!to || !isValidEmail(to)) {
+    throw new Error(`Invalid email address: ${to}`);
   }
+
+  const fromAddress = getFromAddress();
+
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const client = getBrevoClient();
+
+      console.log(`📧 Attempting to send email to: ${to} via Brevo`);
+
+      const emailData = {
+        sender: fromAddress,
+        to: [{ email: to }],
+        subject: subject,
+        textContent: text,
+        htmlContent: html,
+      };
+
+      const info = await client.transactionalEmails.sendTransacEmail(emailData);
+      console.log("✅ Email sent successfully via Brevo:", info.messageId);
+      return info;
+    } catch (err) {
+      console.error("❌ Brevo send failed for:", to);
+      console.error("❌ Brevo error:", err.message);
+      if (err.body) {
+        console.error("❌ Brevo error details:", err.body);
+      }
+
+      if (!hasSmtpConfig()) {
+        throw err;
+      }
+
+      console.warn("⚠️ Falling back to SMTP relay...");
+    }
+  }
+
+  if (!hasSmtpConfig()) {
+    throw new Error("No email provider configured. Set BREVO_API_KEY or SMTP_* variables.");
+  }
+
+  const transporter = getSmtpTransporter();
+  const smtpInfo = await transporter.sendMail({
+    from: `"${fromAddress.name}" <${fromAddress.email}>`,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  console.log("✅ Email sent successfully via SMTP:", smtpInfo.messageId);
+  return smtpInfo;
 }
 
 export async function sendWelcomeEmail(to, name) {
@@ -88,6 +132,20 @@ export async function sendPasswordChangedEmail(to, name) {
     <p>— The AgriLink Team</p>
   `;
   const text = `Hi ${name || "there"},\n\nThis is a confirmation that your account password was successfully updated. If you did not perform this change, please contact support immediately or reset your password.\n\n— The AgriLink Team`;
+  return sendMail({ to, subject, text, html });
+}
+
+export async function sendLoginOTPEmail(to, name, otp) {
+  const subject = "Your AgriLink login verification code";
+  const html = `
+    <p>Hi ${name || "there"},</p>
+    <p>Use the verification code below to complete your login:</p>
+    <p style="font-size: 24px; letter-spacing: 3px;"><strong>${otp}</strong></p>
+    <p>This code expires in 10 minutes.</p>
+    <p>If you did not request this code, please ignore this email.</p>
+    <p>— The AgriLink Team</p>
+  `;
+  const text = `Hi ${name || "there"},\n\nUse this verification code to complete your login: ${otp}\n\nThis code expires in 10 minutes. If you did not request this code, please ignore this email.\n\n— The AgriLink Team`;
   return sendMail({ to, subject, text, html });
 }
 
@@ -149,6 +207,7 @@ export async function sendPaymentConfirmationEmail(to, name, orderId, totalPrice
 export default { 
   sendWelcomeEmail, 
   sendPasswordChangedEmail, 
+  sendLoginOTPEmail,
   sendFarmerWelcomeEmail,
   sendOrderConfirmationEmail,
   sendOrderCancellationEmail,

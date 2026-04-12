@@ -322,7 +322,7 @@ function TrackDeliverySection({ data, actions }) {
   );
 }
 
-function BuyerDashboard({ data, user, loading, error, actions }) {
+function BuyerDashboard({ data, user, loading, error, actions, onViewStore }) {
   const [activeSection, setActiveSection] = useState("products");
   const [messageTarget, setMessageTarget] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -474,10 +474,21 @@ function BuyerDashboard({ data, user, loading, error, actions }) {
                   <div className="flex-1">
                     <strong className="text-base font-bold text-slate-900">{product.name}</strong>
                     <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-earth-600">{product.category}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      Store: {product.store?.name || "Unknown Store"}
+                    </p>
                     <p className="mt-1 text-sm text-slate-600 line-clamp-2">{product.description}</p>
                     <p className="mt-2 text-sm font-bold text-slate-900">{money(product.price)} per {product.unit}</p>
                     <p className="text-xs text-slate-500">{product.quantity} {product.unit} available</p>
                   </div>
+                  <button
+                    type="button"
+                    className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    onClick={() => product.store?._id && onViewStore && onViewStore(product.store._id)}
+                    disabled={!product.store?._id}
+                  >
+                    View Store
+                  </button>
                   <button 
                     type="button" 
                     className="mt-4 w-full rounded-xl border border-earth-300 bg-white px-3 py-2 text-sm font-semibold text-earth-700 transition hover:bg-earth-600 hover:text-white disabled:opacity-50" 

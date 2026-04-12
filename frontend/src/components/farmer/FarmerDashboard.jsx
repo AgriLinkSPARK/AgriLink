@@ -8,25 +8,14 @@ function money(value) {
 }
 
 function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup = false, onAddProduct, onEditProduct }) {
-  const [activeSection, setActiveSection] = useState("products");
-  const [isStoreEditorOpen, setIsStoreEditorOpen] = useState(forceStoreSetup);
-  const [productToDelete, setProductToDelete] = useState(null);
-  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
-  const [productSearch, setProductSearch] = useState("");
-
-  const filteredProducts = useMemo(() => {
-    const keyword = productSearch.trim().toLowerCase();
-    if (!keyword) {
-      return data.products || [];
-    }
-
-    return (data.products || []).filter((product) => {
-      const name = String(product.name || "").toLowerCase();
-      const category = String(product.category || "").toLowerCase();
-      const description = String(product.description || "").toLowerCase();
-      return name.includes(keyword) || category.includes(keyword) || description.includes(keyword);
-    });
-  }, [data.products, productSearch]);
+  const [activeSection, setActiveSection] = useState("store");
+  const [isSavingTwoStep, setIsSavingTwoStep] = useState(false);
+  const [storeForm, setStoreForm] = useState({
+    name: data.store?.name || "",
+    description: data.store?.description || "",
+    location: data.store?.location || "",
+    phone: data.store?.phone || "",
+  });
 
   const stats = useMemo(() => [
     { label: "Store", value: data.store?.name || "My Store", note: "Farm marketplace" },
@@ -35,15 +24,15 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
     { label: "Revenue", value: money(data.totalRevenue || 0), note: "Sales so far" },
   ], [data.store?.name, data.products?.length, data.orders?.length, data.totalRevenue]);
 
-  if (forceStoreSetup || isStoreEditorOpen) {
+  if (forceStoreSetup) {
     return (
       <StoreUpdatePage
         initialStore={data.store}
         loading={loading}
         error={error}
         onSubmit={actions.updateStore}
-        onBack={forceStoreSetup ? null : () => setIsStoreEditorOpen(false)}
-        isSetupMode={forceStoreSetup}
+        onBack={null}
+        isSetupMode
       />
     );
   }
@@ -277,6 +266,30 @@ function FarmerDashboard({ data, user, loading, error, actions, forceStoreSetup 
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Role</p>
               <p className="text-lg font-semibold text-slate-900">Farmer</p>
+            </div>
+            <div className="mt-2 rounded-xl border border-earth-200 bg-earth-50/50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">2-Step Verification</p>
+                  <p className="text-xs text-slate-600">Require OTP verification by email for login.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSavingTwoStep}
+                  onClick={async () => {
+                    const nextValue = !data.user?.twoStepEnabled;
+                    setIsSavingTwoStep(true);
+                    try {
+                      await actions.updateTwoStepPreference(nextValue);
+                    } finally {
+                      setIsSavingTwoStep(false);
+                    }
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${data.user?.twoStepEnabled ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-700 text-white hover:bg-slate-800"} disabled:cursor-not-allowed disabled:opacity-70`}
+                >
+                  {isSavingTwoStep ? "Saving..." : data.user?.twoStepEnabled ? "On" : "Off"}
+                </button>
+              </div>
             </div>
           </div>
         </PageCard>

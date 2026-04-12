@@ -78,7 +78,12 @@ function App() {
             const storeData = storeRes.data || storeRes || {};
 
             setFarmerState({
-              user: { name: session.name || "Farmer", email: session.email || "", role: "farmer" },
+              user: {
+                name: session.name || "Farmer",
+                email: session.email || "",
+                role: "farmer",
+                twoStepEnabled: Boolean(session.twoStepEnabled),
+              },
               store: storeData,
               products: [],
               orders: [],
@@ -88,16 +93,21 @@ function App() {
             return;
           }
 
-          const [dashboard, storeRes] = await Promise.all([
+          const [dashboard, storeRes, twoStepPref] = await Promise.all([
             apiRequest("/auth/dashboard", { token: session.token }),
             apiRequest("/farmer/store", { token: session.token }).catch(() => ({ data: {} })),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const dashboardData = dashboard.data || {};
           const storeData = storeRes.data || storeRes || {};
+          const twoStepData = twoStepPref.data || twoStepPref || {};
 
           setFarmerState({
-            user: dashboardData.user,
+            user: {
+              ...(dashboardData.user || {}),
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             store: storeData,
             products: storeData.products || [],
             orders: dashboardData.orders || [],
@@ -105,47 +115,63 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else if (session.role === "customer") {
-          const [dashboard, productsData, cart, orders, profile, reviews] = await Promise.all([
-            apiRequest("/customer/dashboard", { token: session.token }),
-            apiRequest("/products/all", { token: session.token }),
-            apiRequest("/cart", { token: session.token }),
-            apiRequest("/orders/my-orders", { token: session.token }),
-            apiRequest("/customer/profile", { token: session.token }),
             apiRequest("/reviews", { token: session.token }),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const dashboardData = dashboard.data || {};
-          const cartData = cart.data || cart || { items: [] };
+              user: {
+                name: session.name || "Farmer",
+                email: session.email || "",
+                role: "farmer",
+                twoStepEnabled: Boolean(session.twoStepEnabled),
+              },
           const ordersData = orders.data || orders || [];
           const profileData = profile.data || profile || {};
           const reviewsData = reviews.data || reviews || [];
+          const twoStepData = twoStepPref.data || twoStepPref || {};
+          const combinedUser = dashboardData.user || profileData.user || profileData;
 
           setBuyerState({
-            user: dashboardData.user || profileData.user || profileData,
+            user: {
+              ...(combinedUser || {}),
+          const [dashboard, storeRes, twoStepPref] = await Promise.all([
+            },
             products: productsData.data?.products || productsData.products || [],
-            productPage: productsData.data?.page || 1,
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
             productPages: productsData.data?.pages || 1,
             productFilters: { search: "", category: "all", page: 1 },
             cart: cartData,
             orders: ordersData,
+          const twoStepData = twoStepPref.data || twoStepPref || {};
             reviews: reviewsData,
             cartTotal: (cartData.items || []).reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.productId?.price || 0), 0),
-            unpaidOrders: ordersData.filter((order) => order.paymentStatus !== "Paid" && order.status !== "Cancelled").length,
+            user: {
+              ...(dashboardData.user || {}),
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             greeting: dashboard.message || "Welcome back",
           });
         } else {
-          const [usersRes, productsRes, logisticsRes] = await Promise.all([
+          const [usersRes, productsRes, logisticsRes, twoStepPref] = await Promise.all([
             apiRequest("/admin/users", { token: session.token }),
             apiRequest("/products/all", { token: session.token }),
             apiRequest("/logistics", { token: session.token }),
+            apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const usersData = usersRes.users || usersRes.data || [];
           const productsData = productsRes.data || [];
           const logisticsData = logisticsRes.data || [];
           const logisticsPagination = logisticsRes.pagination || null;
+          const twoStepData = twoStepPref.data || twoStepPref || {};
 
           setAdminState({
+            user: {
+              name: session.name || "Admin",
+              email: session.email || "",
+              twoStepEnabled: !!twoStepData.twoStepEnabled,
+            },
             users: usersData,
             products: productsData,
             logistics: logisticsData,
@@ -170,8 +196,8 @@ function App() {
     if (!session) return null;
     if (session.role === "customer") return buyerState?.user;
     if (session.role === "farmer") return farmerState?.user || { name: session.name || "Farmer", email: session.email || "" };
-    return { name: session.name || "Admin", email: session.email || "" };
-  }, [session, buyerState, farmerState]);
+    return adminState?.user || { name: session.name || "Admin", email: session.email || "", twoStepEnabled: false };
+  }, [session, buyerState, farmerState, adminState]);
 
   const editingProduct = useMemo(() => {
     if (!editingProductId || !farmerState?.products?.length) {
@@ -222,8 +248,27 @@ function App() {
       }
 
       const authData = response.data || response;
-      const token = authData?.token || response?.token;
-      const role = authData?.role || response?.role || (mode === "buyer" ? "customer" : mode === "farmer" ? "farmer" : "admin");
+
+      if (authData?.requiresTwoStep && authData?.otpSessionId) {
+        const otpInput = window.prompt("Enter the 6-digit OTP sent to your email");
+        if (!otpInput) {
+          throw new Error("OTP verification cancelled.");
+        }
+
+        const verified = await apiRequest("/auth/login/2step/verify-otp", {
+          method: "POST",
+          body: {
+            otpSessionId: authData.otpSessionId,
+            otp: otpInput.trim(),
+          },
+        });
+
+        response = verified;
+      }
+
+      const finalAuthData = response?.data || response || authData;
+      const token = finalAuthData?.token;
+      const role = finalAuthData?.role || (mode === "buyer" ? "customer" : mode === "farmer" ? "farmer" : "admin");
 
       if (!token) {
         throw new Error("No token received from server. Response: " + JSON.stringify(response));
@@ -234,7 +279,8 @@ function App() {
         role,
         name: form.name || form.email.split("@")[0],
         email: form.email,
-        requiresStoreSetup: Boolean(authData?.requiresStoreSetup),
+        requiresStoreSetup: Boolean(finalAuthData?.requiresStoreSetup),
+        twoStepEnabled: Boolean(finalAuthData?.twoStepEnabled),
       };
 
       saveSession(nextSession);
@@ -346,6 +392,22 @@ function App() {
       await apiRequest("/customer/profile", { method: "PUT", token: session.token, body: payload });
       const profile = await apiRequest("/customer/profile", { token: session.token });
       setBuyerState((current) => ({ ...current, user: profile.user }));
+    },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setBuyerState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
     },
     setProductFilters: async (newFilters) => {
       setBuyerState(current => {
@@ -535,6 +597,22 @@ function App() {
       const response = await apiRequest("/messages/inbox", { token: session.token });
       return response.data || response;
     },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setFarmerState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
+    },
   };
 
   const adminActions = {
@@ -619,6 +697,22 @@ function App() {
         logistics: logisticsRes.data || logisticsRes || [],
         logisticsPagination: logisticsRes.pagination || null,
       }));
+    },
+    updateTwoStepPreference: async (enabled) => {
+      const preferenceRes = await apiRequest("/auth/2step/preference", {
+        method: "PATCH",
+        token: session.token,
+        body: { enabled },
+      });
+      const twoStepEnabled = !!(preferenceRes.data?.twoStepEnabled ?? preferenceRes.twoStepEnabled ?? enabled);
+      setAdminState((current) => ({
+        ...current,
+        user: {
+          ...(current?.user || {}),
+          twoStepEnabled,
+        },
+      }));
+      return twoStepEnabled;
     },
   };
 

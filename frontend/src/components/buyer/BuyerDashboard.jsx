@@ -333,6 +333,7 @@ function BuyerDashboard({ data, user, loading, error, actions, onViewStore, onVi
     phone: user?.phone || "",
   });
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+  const [isSavingTwoStep, setIsSavingTwoStep] = useState(false);
 
   const showToast = (message, type = "success") => {
     setToast({ visible: true, message, type });
@@ -633,6 +634,34 @@ function BuyerDashboard({ data, user, loading, error, actions, onViewStore, onVi
           <input className="w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none transition focus:border-earth-500 focus:ring-2 focus:ring-earth-200" value={profileForm.phone} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Phone" />
           <button className="rounded-xl bg-earth-600 px-4 py-2.5 font-semibold text-white transition hover:bg-earth-700" type="submit">Save profile</button>
         </form>
+
+        <div className="mt-5 max-w-lg rounded-xl border border-earth-200 bg-earth-50/50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">2-Step Verification</p>
+              <p className="text-xs text-slate-600">Require OTP verification by email when logging in.</p>
+            </div>
+            <button
+              type="button"
+              disabled={isSavingTwoStep}
+              onClick={async () => {
+                const nextValue = !data.user?.twoStepEnabled;
+                setIsSavingTwoStep(true);
+                try {
+                  await actions.updateTwoStepPreference(nextValue);
+                  showToast(`2-step verification ${nextValue ? "enabled" : "disabled"}.`, "success");
+                } catch (toggleError) {
+                  showToast(toggleError.message || "Failed to update 2-step setting.", "info");
+                } finally {
+                  setIsSavingTwoStep(false);
+                }
+              }}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${data.user?.twoStepEnabled ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-700 text-white hover:bg-slate-800"} disabled:cursor-not-allowed disabled:opacity-70`}
+            >
+              {isSavingTwoStep ? "Saving..." : data.user?.twoStepEnabled ? "On" : "Off"}
+            </button>
+          </div>
+        </div>
       </PageCard>
       ) : null}
     </div>

@@ -160,7 +160,12 @@ function App() {
           ]);
 
           const usersData = usersRes.users || usersRes.data || [];
-          const productsData = productsRes.data || [];
+          const productsPayload = productsRes.data || productsRes || {};
+          const productsData = Array.isArray(productsPayload)
+            ? productsPayload
+            : Array.isArray(productsPayload.products)
+              ? productsPayload.products
+              : [];
           const logisticsData = logisticsRes.data || [];
           const logisticsPagination = logisticsRes.pagination || null;
           const ordersData = ordersRes.data?.data || ordersRes.data || ordersRes || [];

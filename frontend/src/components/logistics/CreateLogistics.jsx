@@ -103,23 +103,12 @@ function CreateLogistics({ isOpen, onClose, onSubmit, orders = [], prefillOrder 
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Order Selection - Read Only when pre-filled */}
+          {/* Order Selection */}
           <div className="rounded-xl border border-earth-200 bg-earth-50/50 p-4">
             <label className="mb-2 block text-sm font-semibold text-slate-800">
               Order ID <span className="text-red-500">*</span>
             </label>
-            {prefillOrder ? (
-              // Read-only display when order is pre-selected
-              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-                <svg className="h-5 w-5 text-earth-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="font-mono text-sm font-semibold text-slate-900">{formData.orderId}</p>
-                  <p className="text-xs text-slate-500">Order selected from list</p>
-                </div>
-              </div>
-            ) : orders.length > 0 ? (
+            {orders.length > 0 ? (
               <select
                 value={formData.orderId}
                 onChange={(e) => {

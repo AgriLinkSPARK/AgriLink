@@ -151,25 +151,17 @@ function App() {
             greeting: dashboard.message || "Welcome back",
           });
         } else {
-          const [usersRes, productsRes, logisticsRes, ordersRes, twoStepPref] = await Promise.all([
+          const [usersRes, productsRes, logisticsRes, twoStepPref] = await Promise.all([
             apiRequest("/admin/users", { token: session.token }),
             apiRequest("/products/all", { token: session.token }),
             apiRequest("/logistics", { token: session.token }),
-            apiRequest("/orders/all", { token: session.token }),
             apiRequest("/auth/2step/preference", { token: session.token }).catch(() => ({ data: { twoStepEnabled: false } })),
           ]);
 
           const usersData = usersRes.users || usersRes.data || [];
-          const productsPayload = productsRes.data || productsRes || {};
-          const productsData = Array.isArray(productsPayload)
-            ? productsPayload
-            : Array.isArray(productsPayload.products)
-              ? productsPayload.products
-              : [];
+          const productsData = productsRes.data || [];
           const logisticsData = logisticsRes.data || [];
           const logisticsPagination = logisticsRes.pagination || null;
-          const ordersData = ordersRes.data?.data || ordersRes.data || ordersRes || [];
-          const ordersPagination = ordersRes.data?.pagination || null;
           const twoStepData = twoStepPref.data || twoStepPref || {};
 
           setAdminState({
@@ -182,8 +174,6 @@ function App() {
             products: productsData,
             logistics: logisticsData,
             logisticsPagination,
-            orders: ordersData,
-            ordersPagination,
             stores: [],
             customers: usersData.filter((entry) => entry.role === "customer").length,
             farmers: usersData.filter((entry) => entry.role === "farmer").length,
@@ -677,14 +667,6 @@ function App() {
         ...current,
         logistics: logisticsRes.data || logisticsRes || [],
         logisticsPagination: logisticsRes.pagination || null,
-      }));
-    },
-    fetchOrders: async (page = 1, limit = 10) => {
-      const ordersRes = await apiRequest(`/orders/all?page=${page}&limit=${limit}`, { token: session.token });
-      setAdminState((current) => ({
-        ...current,
-        orders: ordersRes.data?.data || ordersRes.data || ordersRes || [],
-        ordersPagination: ordersRes.data?.pagination || null,
       }));
     },
     createLogistics: async (payload) => {

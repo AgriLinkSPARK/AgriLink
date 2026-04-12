@@ -8,6 +8,7 @@ import {
   updateProduct, 
   deleteProduct, 
   getProductById, 
+  getPublicProductById,
   searchProducts 
 } from "../controllers/productController.js";
 import { upload } from "../config/multerCloudinary.js";
@@ -16,6 +17,7 @@ const router = express.Router();
 
 // ── Customer-facing: browse all in-stock products (any authenticated role) ──
 router.get("/all", protect, getAllProducts);
+router.get("/details/:id", protect, getPublicProductById);
 
 // ── Only farmers can manage their products ──
 router.post(

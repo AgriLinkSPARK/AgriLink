@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   phone: { type: String, trim: true },
   twoStepEnabled: { type: Boolean, default: false },
+  last_log_at: { type: Date, default: null },
   role: {
     type: String,
     enum: Object.values(USER_ROLES),

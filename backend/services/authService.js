@@ -131,11 +131,13 @@ class AuthService {
     }
 
     let hasStore = null;
+    let requiresStoreSetup = false;
     if (user.role === USER_ROLES.FARMER) {
       hasStore = await this.checkUserStore(user._id);
+      requiresStoreSetup = !user.last_log_at;
     }
 
-    return { user, hasStore };
+    return { user, hasStore, requiresStoreSetup };
   }
 
   /**
@@ -157,6 +159,8 @@ class AuthService {
       userId: String(user._id),
       role: user.role,
       hasStore,
+      requiresStoreSetup: user.role === USER_ROLES.FARMER && !user.last_log_at,
+      last_log_at: user.last_log_at || null,
       otpHash: this.hashOTP(otp),
       expiresAt,
     });
@@ -249,6 +253,8 @@ class AuthService {
       token,
       role: session.role,
       hasStore: session.hasStore,
+      requiresStoreSetup: session.requiresStoreSetup,
+      last_log_at: session.last_log_at,
     };
   }
 

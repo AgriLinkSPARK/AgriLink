@@ -1,27 +1,50 @@
-const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api";
+const DEFAULT_BASES = ["http://localhost:5000/api", "http://localhost:8080/api"];
+const API_BASE = process.env.REACT_APP_API_BASE_URL || DEFAULT_BASES[0];
 
 export async function apiRequest(path, { method = "GET", body, token } = {}) {
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const headers = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  console.log(`[API] ${method} ${API_BASE}${path}`, { hasToken: !!token, headerKeys: Object.keys(headers) });
+  const baseCandidates = process.env.REACT_APP_API_BASE_URL
+    ? [process.env.REACT_APP_API_BASE_URL]
+    : DEFAULT_BASES;
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let lastNetworkError = null;
 
-  const data = await response.json().catch(() => ({}));
+  for (const baseUrl of baseCandidates) {
+    try {
+      console.log(`[API] ${method} ${baseUrl}${path}`, { hasToken: !!token, headerKeys: Object.keys(headers) });
 
-  if (!response.ok) {
-    console.error(`[API] Error on ${path}:`, response.status, data);
-    throw new Error(data?.message || "Request failed");
+      const response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers,
+        body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        console.error(`[API] Error on ${path}:`, response.status, data);
+        throw new Error(data?.message || "Request failed");
+      }
+
+      return data;
+    } catch (error) {
+      // Retry on connection-level failures when multiple base URLs are available.
+      if (error instanceof TypeError && baseCandidates.length > 1) {
+        lastNetworkError = error;
+        continue;
+      }
+      throw error;
+    }
   }
 
-  return data;
+  throw new Error(
+    `Unable to connect to API. Tried: ${baseCandidates.join(", ")}${lastNetworkError ? ` (${lastNetworkError.message})` : ""}`
+  );
 }
 
 export { API_BASE };

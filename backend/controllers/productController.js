@@ -3,6 +3,7 @@
 // Business logic moved to service layer (SOLID: SRP, DIP)
 
 import productService from "../services/productService.js";
+import Store from "../models/Store.js";
 import { asyncHandler } from "../utils/errorHandler.js";
 import { sendSuccess, sendCreated } from "../utils/responseHandler.js";
 import { SUCCESS_MESSAGES } from "../constants/index.js";
@@ -17,15 +18,12 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
 // Create product
 export const createProduct = asyncHandler(async (req, res) => {
-  console.log("BODY:", req.body);
-  console.log("FILES:", req.files);
+  // Ensure the farmer has a store before creating a product
+  const store = await Store.findOne({ farmer: req.user.id });
+  if (!store) {
+    return res.status(404).json({ message: "Store not found" });
+  }
 
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
-    // Find the farmer's store
-    const store = await Store.findOne({ farmer: req.user.id });
-    if (!store) return res.status(404).json({ message: "Store not found" });
-  // Business logic handled by service
   const product = await productService.createProduct(
     req.user.id,
     req.body,
@@ -70,6 +68,12 @@ export const getProductById = asyncHandler(async (req, res) => {
   // Business logic handled by service
   const product = await productService.getProductById(req.params.id);
 
+  sendSuccess(res, product);
+});
+
+// Get single product by ID for buyers/customers
+export const getPublicProductById = asyncHandler(async (req, res) => {
+  const product = await productService.getProductById(req.params.id);
   sendSuccess(res, product);
 });
 

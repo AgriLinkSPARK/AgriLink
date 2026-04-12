@@ -118,6 +118,7 @@ class ProductService {
       page = 1, 
       limit = 10, 
       category, 
+      storeId,
       search,
       sortBy = "createdAt",
       sortOrder = "desc"
@@ -130,6 +131,10 @@ class ProductService {
     
     if (category && category !== "all") {
       query.category = category;
+    }
+
+    if (storeId) {
+      query.store = storeId;
     }
     
     if (search && search.trim() !== "") {

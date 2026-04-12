@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AuthPanel from "./components/auth/AuthPanel";
 import BuyerDashboard from "./components/buyer/BuyerDashboard";
+import BuyerStorePage from "./components/buyer/BuyerStorePage";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import FarmerDashboard from "./components/farmer/FarmerDashboard";
 import ProductCreatePage from "./components/farmer/ProductCreatePage";
@@ -27,6 +28,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [buyerState, setBuyerState] = useState(null);
+  const [buyerStoreState, setBuyerStoreState] = useState({ loading: false, error: "", store: null, products: [] });
   const [adminState, setAdminState] = useState(null);
   const [farmerState, setFarmerState] = useState(null);
   const [routePath, setRoutePath] = useState(() => window.location.pathname);
@@ -48,7 +50,9 @@ function App() {
 
   const isFarmerProductCreateRoute = routePath === "/farmer/products/new";
   const farmerProductEditMatch = routePath.match(/^\/farmer\/products\/([^/]+)\/edit$/);
+  const buyerStoreMatch = routePath.match(/^\/buyer\/stores\/([^/]+)$/);
   const editingProductId = farmerProductEditMatch?.[1] || null;
+  const selectedBuyerStoreId = buyerStoreMatch?.[1] || null;
 
   useEffect(() => {
     if (!session) return;
@@ -369,6 +373,55 @@ function App() {
     },
   };
 
+  useEffect(() => {
+    if (session?.role !== "customer" || !selectedBuyerStoreId) {
+      return;
+    }
+
+    let ignore = false;
+
+    const loadStoreData = async () => {
+      setBuyerStoreState({ loading: true, error: "", store: null, products: [] });
+
+      try {
+        let page = 1;
+        let pages = 1;
+        const products = [];
+
+        do {
+          const response = await apiRequest(`/products/all?storeId=${selectedBuyerStoreId}&page=${page}&limit=30`, {
+            token: session.token,
+          });
+          const result = response.data || response || {};
+          products.push(...(result.products || []));
+          pages = Number(result.pages || 1);
+          page += 1;
+        } while (page <= pages);
+
+        const store = products[0]?.store || null;
+
+        if (!ignore) {
+          setBuyerStoreState({ loading: false, error: "", store, products });
+        }
+      } catch (storeError) {
+        if (!ignore) {
+          setBuyerStoreState({
+            loading: false,
+            error: storeError.message || "Failed to load store products",
+            store: null,
+            products: [],
+          });
+        }
+      }
+    };
+
+    loadStoreData();
+
+    return () => {
+      ignore = true;
+    };
+  }, [session?.role, session?.token, selectedBuyerStoreId]);
+
   const farmerActions = {
     logout,
     updateStore: async (payload) => {
@@ -561,8 +614,30 @@ function App() {
     );
   }
 
+  if (session?.role === "customer" && buyerState && selectedBuyerStoreId) {
+    return (
+      <BuyerStorePage
+        store={buyerStoreState.store}
+        products={buyerStoreState.products}
+        loading={buyerStoreState.loading}
+        error={buyerStoreState.error}
+        onAddToCart={buyerActions.addToCart}
+        onBack={() => navigateTo("/")}
+      />
+    );
+  }
+
   if (session?.role === "customer" && buyerState) {
-    return <BuyerDashboard data={buyerState} user={dashboardUser} loading={busy} error={error} actions={buyerActions} />;
+    return (
+      <BuyerDashboard
+        data={buyerState}
+        user={dashboardUser}
+        loading={busy}
+        error={error}
+        actions={buyerActions}
+        onViewStore={(storeId) => navigateTo(`/buyer/stores/${storeId}`)}
+      />
+    );
   }
 
   if (session?.role === "farmer" && farmerState) {

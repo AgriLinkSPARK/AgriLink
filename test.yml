@@ -1,0 +1,11 @@
+config:
+  target: "https://agrilink.aenuin.com"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+
+scenarios:
+  - name: Home page load
+    flow:
+      - get:
+          url: "/"

@@ -5,6 +5,7 @@ export async function apiRequest(path, { method = "GET", body, token } = {}) {
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const headers = {
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
+    // Send JWT from client-side session for protected backend endpoints.
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 

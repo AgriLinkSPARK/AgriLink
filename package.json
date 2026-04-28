@@ -6,7 +6,8 @@
     "vercel:build": "npm --prefix frontend run build && rm -rf build && cp -R frontend/build build",
     "postinstall": "npm --prefix backend install",
     "start": "npm --prefix backend start",
-    "dev": "npm --prefix backend run dev"
+    "dev": "npm --prefix backend run dev",
+    "perf:summary": "node performance-tests/generate-summary.mjs performance-tests/report.json performance-tests/report-summary.md"
   },
   "dependencies": {
     "twilio": "^5.12.2",

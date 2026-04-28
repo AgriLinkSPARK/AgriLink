@@ -7,6 +7,7 @@ import AdminDashboard from "./components/admin/AdminDashboard";
 import FarmerDashboard from "./components/farmer/FarmerDashboard";
 import ProductCreatePage from "./components/farmer/ProductCreatePage";
 import HomePortal from "./components/common/HomePortal";
+import { AdminDashboardProvider } from "./context/AdminDashboardContext";
 import { apiRequest } from "./services/api";
 import { clearSession, loadSession, saveSession } from "./services/session";
 
@@ -17,6 +18,8 @@ const farmerRegisterDefaults = { name: "", email: "", password: "" };
 const adminLoginDefaults = { email: "", password: "" };
 
 function App() {
+  // State management map (App-level): this block is the source of role/app state.
+  // App.js lines ~21-39: useState hooks for session, UI mode, role-specific dashboard state.
   const [session, setSession] = useState(() => loadSession());
   const [mode, setMode] = useState(session?.role === "admin" ? "admin" : session?.role === "farmer" ? "farmer" : "buyer");
   const [view, setView] = useState("login");
@@ -816,7 +819,21 @@ function App() {
   }
 
   if (session?.role === "admin" && adminState) {
-    return <AdminDashboard data={adminState} user={dashboardUser} loading={busy} error={error} actions={adminActions} />;
+    // State management map (Context wiring): App.js lines ~820-831.
+    // Admin state/actions are provided here and consumed in AdminDashboard via useAdminDashboardContext.
+    return (
+      <AdminDashboardProvider
+        value={{
+          data: adminState,
+          user: dashboardUser,
+          loading: busy,
+          error,
+          actions: adminActions,
+        }}
+      >
+        <AdminDashboard />
+      </AdminDashboardProvider>
+    );
   }
 
   if (session) {

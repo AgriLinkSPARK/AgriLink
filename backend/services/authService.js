@@ -10,6 +10,8 @@ import { AppError } from "../utils/errorHandler.js";
 import { USER_ROLES, ERROR_MESSAGES, HTTP_STATUS } from "../constants/index.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
+// Temporary in-memory session store for OTP verification only.
+// This is not a persistent server session store.
 const otpSessions = new Map();
 
 /**
@@ -21,6 +23,7 @@ class AuthService {
    * Generate JWT token
    */
   generateToken(user) {
+    // Main authentication is stateless JWT, not express-session.
     return jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -155,6 +158,7 @@ class AuthService {
     const otpSessionId = crypto.randomUUID();
     const expiresAt = Date.now() + OTP_TTL_MS;
 
+    // Keep minimal login state until OTP is verified or expires.
     otpSessions.set(otpSessionId, {
       userId: String(user._id),
       role: user.role,
@@ -243,6 +247,7 @@ class AuthService {
 
     otpSessions.delete(otpSessionId);
 
+    // On successful OTP, issue the same stateless JWT used by protected routes.
     const token = jwt.sign(
       { id: session.userId, role: session.role },
       process.env.JWT_SECRET,

@@ -6,8 +6,20 @@ import CreateLogistics from "../logistics/CreateLogistics";
 import LogisticsDetails from "../logistics/LogisticsDetails";
 import UpdateStatus from "../logistics/UpdateStatus";
 import DeleteLogisticsModal from "../logistics/DeleteLogisticsModal";
+import { useAdminDashboardContext } from "../../context/AdminDashboardContext";
 
-function AdminDashboard({ data, user, loading, error, actions }) {
+function AdminDashboard(props = {}) {
+  // State management map (admin context): AdminDashboard.jsx lines ~12-17.
+  // Reads admin state/actions from Context with prop fallback for compatibility.
+  const adminContext = useAdminDashboardContext();
+  const dashboardData = props.data ?? adminContext?.data ?? { users: [], products: [], logistics: [], customers: 0, farmers: 0 };
+  const dashboardUser = props.user ?? adminContext?.user ?? null;
+  const isLoading = props.loading ?? adminContext?.loading ?? false;
+  const dashboardError = props.error ?? adminContext?.error ?? "";
+  const dashboardActions = props.actions ?? adminContext?.actions ?? {};
+
+  // State management map (admin local UI state): AdminDashboard.jsx lines ~19-37.
+  // useState hooks below control section tabs, forms, modals, and per-action feedback.
   const [activeSection, setActiveSection] = useState("users");
   const [newUser, setNewUser] = useState({ name: "", email: "", role: "customer" });
   const [userSearch, setUserSearch] = useState("");
@@ -28,20 +40,20 @@ function AdminDashboard({ data, user, loading, error, actions }) {
   const [isSavingTwoStep, setIsSavingTwoStep] = useState(false);
 
   const filteredUsers = useMemo(() => {
-    return data.users.filter((entry) => {
+    return dashboardData.users.filter((entry) => {
       const matchesRole = roleFilter === "all" || entry.role === roleFilter;
       const haystack = `${entry.name || ""} ${entry.email || ""}`.toLowerCase();
       const matchesSearch = userSearch.trim().length === 0 || haystack.includes(userSearch.trim().toLowerCase());
       return matchesRole && matchesSearch;
     });
-  }, [data.users, roleFilter, userSearch]);
+  }, [dashboardData.users, roleFilter, userSearch]);
 
   const stats = useMemo(() => [
-    { label: "Users", value: String(data.users.length), note: `${data.customers} buyers` },
-    { label: "Products", value: String(data.products.length), note: "Catalog overview" },
-    { label: "Logistics", value: String(data.logistics.length), note: "Delivery records" },
-    { label: "Farmers", value: String(data.farmers), note: "Store owners" },
-  ], [data.users.length, data.products.length, data.logistics.length, data.customers, data.farmers]);
+    { label: "Users", value: String(dashboardData.users.length), note: `${dashboardData.customers} buyers` },
+    { label: "Products", value: String(dashboardData.products.length), note: "Catalog overview" },
+    { label: "Logistics", value: String(dashboardData.logistics.length), note: "Delivery records" },
+    { label: "Farmers", value: String(dashboardData.farmers), note: "Store owners" },
+  ], [dashboardData.users.length, dashboardData.products.length, dashboardData.logistics.length, dashboardData.customers, dashboardData.farmers]);
 
   async function runAdminAction(task, successMessage) {
     setActionError("");
@@ -83,10 +95,10 @@ function AdminDashboard({ data, user, loading, error, actions }) {
       <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-earth-200 bg-white/85 p-6 shadow-soft backdrop-blur-sm md:flex-row md:items-start">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Admin workspace</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{user?.name || "Admin"}</h1>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">{dashboardUser?.name || "Admin"}</h1>
           <p className="mt-2 text-slate-600">Manage users, products, and logistics with a calm, simple interface.</p>
         </div>
-        <button type="button" className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50" onClick={actions.logout}>Logout</button>
+        <button type="button" className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50" onClick={dashboardActions.logout}>Logout</button>
       </div>
 
       <StatGrid items={stats} />
@@ -121,15 +133,15 @@ function AdminDashboard({ data, user, loading, error, actions }) {
               <p className="text-sm text-slate-600">Find, edit, and manage marketplace accounts quickly.</p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-full bg-earth-100 px-3 py-1 text-earth-700">Total: {data.users.length}</span>
+              <span className="rounded-full bg-earth-100 px-3 py-1 text-earth-700">Total: {dashboardData.users.length}</span>
               <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-700">Visible: {filteredUsers.length}</span>
             </div>
           </div>
         </section>
       ) : null}
 
-      {loading ? <p className="mb-3 text-slate-600">Loading admin data...</p> : null}
-      {error ? <p className="mb-3 text-sm font-medium text-red-700">{error}</p> : null}
+      {isLoading ? <p className="mb-3 text-slate-600">Loading admin data...</p> : null}
+      {dashboardError ? <p className="mb-3 text-sm font-medium text-red-700">{dashboardError}</p> : null}
       {actionError ? <p className="mb-3 text-sm font-medium text-red-700">{actionError}</p> : null}
       {actionSuccess ? <p className="mb-3 text-sm font-medium text-earth-700">{actionSuccess}</p> : null}
       {createdCredentials ? (
@@ -144,7 +156,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
             <PageCard title="Create user" subtitle="Create an admin, buyer, or farmer account.">
               <form className="grid gap-3" onSubmit={async (event) => {
                 event.preventDefault();
-                const created = await runAdminAction(async () => actions.createUser(newUser), "User created successfully");
+                const created = await runAdminAction(async () => dashboardActions.createUser(newUser), "User created successfully");
 
                 if (created?.user?.email && created?.user?.password) {
                   setCreatedCredentials({ email: created.user.email, password: created.user.password });
@@ -237,7 +249,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
                                 if (!window.confirm(`Delete ${item.name}? This cannot be undone.`)) {
                                   return;
                                 }
-                                await runAdminAction(async () => actions.deleteUser(item._id), "User deleted successfully");
+                                await runAdminAction(async () => dashboardActions.deleteUser(item._id), "User deleted successfully");
                               }}
                               disabled={isSaving}
                             >
@@ -276,7 +288,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
                   if (trimmedPassword.length > 0) {
                     payload.password = trimmedPassword;
                   }
-                  const updated = await runAdminAction(async () => actions.updateUser(editingUser._id, payload), "User updated successfully");
+                  const updated = await runAdminAction(async () => dashboardActions.updateUser(editingUser._id, payload), "User updated successfully");
                   if (updated) {
                     closeEditModal();
                   }
@@ -317,11 +329,11 @@ function AdminDashboard({ data, user, loading, error, actions }) {
 
       {activeSection === "logistics" ? (
         <LogisticsDashboard
-          data={data}
-          loading={loading}
-          error={error}
-          pagination={data.logisticsPagination}
-          onPageChange={actions.fetchLogistics}
+          data={dashboardData}
+          loading={isLoading}
+          error={dashboardError}
+          pagination={dashboardData.logisticsPagination}
+          onPageChange={dashboardActions.fetchLogistics}
           onViewDetails={(logistics) => {
             setSelectedLogistics(logistics);
             setShowLogisticsDetails(true);
@@ -344,10 +356,10 @@ function AdminDashboard({ data, user, loading, error, actions }) {
         onClose={() => setShowCreateLogistics(false)}
         onSubmit={async (formData) => {
           await runAdminAction(async () => {
-            await actions.createLogistics(formData);
+            await dashboardActions.createLogistics(formData);
           }, "Logistics record created successfully");
         }}
-        orders={data.orders || []}
+        orders={dashboardData.orders || []}
       />
 
       <LogisticsDetails
@@ -364,7 +376,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
         }}
         onSendNotification={async (logistics) => {
           await runAdminAction(async () => {
-            await actions.sendNotification?.(logistics._id);
+            await dashboardActions.sendNotification?.(logistics._id);
           }, "Notification sent successfully");
         }}
       />
@@ -378,7 +390,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
         }}
         onSubmit={async (id, status, notify) => {
           await runAdminAction(async () => {
-            await actions.updateLogistics(id, status, notify);
+            await dashboardActions.updateLogistics(id, status, notify);
           }, `Status updated to ${status.replace(/_/g, " ")}${notify ? " and customer notified" : ""}`);
         }}
       />
@@ -392,7 +404,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
         }}
         onConfirm={async (id) => {
           await runAdminAction(async () => {
-            await actions.deleteLogistics(id);
+            await dashboardActions.deleteLogistics(id);
           }, "Logistics record deleted successfully");
         }}
       />
@@ -400,7 +412,7 @@ function AdminDashboard({ data, user, loading, error, actions }) {
       {activeSection === "products" ? (
         <PageCard title="Products" subtitle="Read-only catalog overview.">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.products.map((product) => (
+            {dashboardData.products.map((product) => (
               <article className="rounded-2xl border border-earth-200 bg-earth-50/50 p-4" key={product._id}>
                 <strong className="text-slate-900">{product.name}</strong>
                 <p className="mt-1 text-sm text-slate-600">{product.category} • {product.availability}</p>
@@ -415,11 +427,11 @@ function AdminDashboard({ data, user, loading, error, actions }) {
           <div className="grid max-w-lg gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Name</p>
-              <p className="text-lg font-semibold text-slate-900">{user?.name || "Admin"}</p>
+              <p className="text-lg font-semibold text-slate-900">{dashboardUser?.name || "Admin"}</p>
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-earth-600">Email</p>
-              <p className="text-lg font-semibold text-slate-900">{user?.email || "admin@agrilink.com"}</p>
+              <p className="text-lg font-semibold text-slate-900">{dashboardUser?.email || "admin@agrilink.com"}</p>
             </div>
             <div className="mt-2 rounded-xl border border-earth-200 bg-earth-50/50 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -431,17 +443,17 @@ function AdminDashboard({ data, user, loading, error, actions }) {
                   type="button"
                   disabled={isSavingTwoStep}
                   onClick={async () => {
-                    const nextValue = !user?.twoStepEnabled;
+                    const nextValue = !dashboardUser?.twoStepEnabled;
                     setIsSavingTwoStep(true);
                     try {
-                      await actions.updateTwoStepPreference(nextValue);
+                      await dashboardActions.updateTwoStepPreference(nextValue);
                     } finally {
                       setIsSavingTwoStep(false);
                     }
                   }}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${user?.twoStepEnabled ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-700 text-white hover:bg-slate-800"} disabled:cursor-not-allowed disabled:opacity-70`}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${dashboardUser?.twoStepEnabled ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-700 text-white hover:bg-slate-800"} disabled:cursor-not-allowed disabled:opacity-70`}
                 >
-                  {isSavingTwoStep ? "Saving..." : user?.twoStepEnabled ? "On" : "Off"}
+                  {isSavingTwoStep ? "Saving..." : dashboardUser?.twoStepEnabled ? "On" : "Off"}
                 </button>
               </div>
             </div>
